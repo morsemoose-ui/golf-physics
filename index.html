@@ -95,11 +95,23 @@
 
             <div class="relative w-full h-72 rounded-xl overflow-hidden border-2 border-slate-700 shadow-xl">
                 <div id="map" class="w-full h-full z-0 bg-slate-800"></div>
-                
+
+                <button onclick="recenterOnUser()" id="recenter-btn" class="absolute bottom-2 right-2 z-10 bg-slate-900/90 backdrop-blur border border-slate-600 rounded-lg p-2 shadow-lg text-emerald-400 active:scale-95 transition">
+                    <i data-lucide="locate-fixed" class="w-4 h-4"></i>
+                </button>
+
+                <button onclick="togglePinPlacement()" id="set-pin-btn" class="absolute bottom-2 left-2 z-10 bg-slate-900/90 backdrop-blur border border-slate-600 rounded-lg py-2 px-3 shadow-lg text-amber-400 active:scale-95 transition flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider">
+                    <i data-lucide="flag" class="w-4 h-4"></i> <span id="set-pin-label">Set Pin</span>
+                </button>
+
                 <div class="absolute top-2 right-2 z-10 flex flex-col gap-2 pointer-events-none" id="target-readout-container">
                     <div class="bg-slate-900/90 backdrop-blur border border-slate-600 rounded-lg p-2 text-center shadow-lg min-w-[80px]">
                         <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mb-0.5">Target</span>
                         <div class="text-xl font-black text-cyan-400 leading-none" id="target-distance">--</div>
+                    </div>
+                    <div class="bg-slate-900/90 backdrop-blur border border-amber-500/40 rounded-lg p-2 text-center shadow-lg min-w-[80px] hidden" id="pin-readout">
+                        <span class="text-[9px] uppercase tracking-wider text-amber-400 font-bold block mb-0.5">Pin</span>
+                        <div class="text-xl font-black text-amber-300 leading-none" id="pin-distance">--</div>
                     </div>
                 </div>
 
@@ -152,6 +164,71 @@
                         <button onclick="triggerShot(false)" class="flex-1 bg-emerald-500 text-slate-950 font-bold py-3 rounded-lg text-sm transition active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20">
                             <i data-lucide="edit-3" class="w-4 h-4"></i> Log Execution
                         </button>
+                    </div>
+                </div>
+
+                <div id="state-execution" class="hidden space-y-5">
+                    <div class="border-b border-slate-700 pb-2">
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                            <i data-lucide="edit-3" class="w-4 h-4 text-emerald-400"></i> Execution Log
+                        </h3>
+                        <p class="text-[10px] text-slate-400 mt-1" id="exec-subtitle-text">Full Swing • Driver</p>
+                    </div>
+
+                    <div id="full-swing-ui" class="space-y-5">
+                        <p class="text-[10px] text-slate-400 text-center -mt-2">Flight shape is reconstructed from GPS — just log the contact.</p>
+                        <div>
+                            <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1.5 text-center">Contact (Mishit)</label>
+                            <div class="grid grid-cols-4 gap-1">
+                                <div class="col-span-4 flex segmented-control red-theme w-full mb-1">
+                                    <input type="radio" id="con-pure" name="vec-contact" value="Pure" checked><label for="con-pure" class="!bg-emerald-500/20 !border-emerald-500 !text-emerald-400">Pure</label>
+                                </div>
+                                <div class="col-span-4 flex segmented-control red-theme w-full">
+                                    <input type="radio" id="con-toe" name="vec-contact" value="Toe"><label for="con-toe">Toe</label>
+                                    <input type="radio" id="con-heel" name="vec-contact" value="Heel"><label for="con-heel">Heel</label>
+                                    <input type="radio" id="con-fat" name="vec-contact" value="Fat"><label for="con-fat">Fat</label>
+                                </div>
+                                <div class="col-span-4 flex segmented-control red-theme w-full">
+                                    <input type="radio" id="con-thin" name="vec-contact" value="Thin"><label for="con-thin">Thin</label>
+                                    <input type="radio" id="con-top" name="vec-contact" value="Top"><label for="con-top">Top</label>
+                                    <input type="radio" id="con-shank" name="vec-contact" value="Shank"><label for="con-shank">Shank</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="short-game-ui" class="space-y-5 hidden">
+                        <div>
+                            <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1.5 text-center">Distance Control</label>
+                            <div class="grid grid-cols-2 gap-1 mb-1">
+                                <div class="flex segmented-control blue-theme w-full">
+                                    <input type="radio" id="sg-dist-p" name="sg-dist" value="Perfect" checked><label for="sg-dist-p" class="!text-emerald-400">Perfect</label>
+                                </div>
+                                <div class="flex segmented-control blue-theme w-full">
+                                    <input type="radio" id="sg-dist-made" name="sg-dist" value="Made"><label for="sg-dist-made" class="!text-emerald-400">Made</label>
+                                </div>
+                            </div>
+                            <div class="flex segmented-control blue-theme w-full">
+                                <input type="radio" id="sg-dist-ws" name="sg-dist" value="Way Short"><label for="sg-dist-ws" class="text-[9px]">Way Short</label>
+                                <input type="radio" id="sg-dist-s" name="sg-dist" value="Short"><label for="sg-dist-s">Short</label>
+                                <input type="radio" id="sg-dist-l" name="sg-dist" value="Long"><label for="sg-dist-l">Long</label>
+                                <input type="radio" id="sg-dist-b" name="sg-dist" value="Blasted"><label for="sg-dist-b" class="text-[9px]">Blasted</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1.5 text-center">Line / Read</label>
+                            <div class="flex segmented-control red-theme w-full">
+                                <input type="radio" id="sg-line-pulled" name="sg-line" value="Pulled"><label for="sg-line-pulled">Pulled</label>
+                                <input type="radio" id="sg-line-on" name="sg-line" value="On Line" checked><label for="sg-line-on" class="!text-emerald-400">On Line</label>
+                                <input type="radio" id="sg-line-pushed" name="sg-line" value="Pushed"><label for="sg-line-pushed">Pushed</label>
+                                <input type="radio" id="sg-line-misread" name="sg-line" value="Misread"><label for="sg-line-misread">Misread</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 pt-2 border-t border-slate-700">
+                        <button onclick="cancelExecution()" class="w-1/3 bg-slate-700 text-white font-bold py-3.5 rounded-lg transition active:scale-95">Back</button>
+                        <button onclick="commitFlightDetails()" class="flex-1 bg-emerald-500 text-slate-950 font-bold py-3.5 rounded-lg shadow-lg transition active:scale-95">Log Shot</button>
                     </div>
                 </div>
 
@@ -237,6 +314,35 @@
                     <div class="bg-slate-900 p-2 rounded-lg border border-slate-700 text-center">
                         <p class="text-[9px] text-slate-400 uppercase font-semibold mb-1">Top Miss</p>
                         <p class="text-sm mt-1 font-black text-amber-400" id="stat-top-miss">--</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-xl">
+                <h2 class="text-sm font-bold text-white mb-1 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="trending-up" class="w-4 h-4 text-emerald-400"></i> Strokes Gained (This Round)
+                </h2>
+                <p class="text-[10px] text-slate-400 mb-3" id="sg-note">Log full shots with a landing position to see your strokes-gained breakdown.</p>
+                <div class="grid grid-cols-5 gap-1.5">
+                    <div class="bg-slate-900 border border-emerald-700/50 p-2 rounded-lg text-center">
+                        <span class="text-[8px] uppercase text-slate-400 font-bold block">Total</span>
+                        <div class="text-lg font-black text-white" id="sg-total">0.0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-center">
+                        <span class="text-[8px] uppercase text-slate-400 font-bold block">Off Tee</span>
+                        <div class="text-lg font-black text-white" id="sg-ott">0.0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-center">
+                        <span class="text-[8px] uppercase text-slate-400 font-bold block">Approach</span>
+                        <div class="text-lg font-black text-white" id="sg-app">0.0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-center">
+                        <span class="text-[8px] uppercase text-slate-400 font-bold block">Around Grn</span>
+                        <div class="text-lg font-black text-white" id="sg-arg">0.0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-center">
+                        <span class="text-[8px] uppercase text-slate-400 font-bold block">Putting</span>
+                        <div class="text-lg font-black text-white" id="sg-putt">0.0</div>
                     </div>
                 </div>
             </div>
@@ -405,71 +511,6 @@
         </div>
     </div>
 
-    <div id="flight-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-[100] flex flex-col items-center justify-center p-4">
-        <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-6">
-            <div class="text-center border-b border-slate-700 pb-3">
-                <h2 class="text-lg font-black text-white tracking-tight" id="modal-title-text">Execution Log</h2>
-                <p class="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-wider" id="flight-modal-subtitle">Full Swing • Driver</p>
-            </div>
-            
-            <div id="full-swing-ui" class="space-y-5">
-                <p class="text-[10px] text-slate-400 text-center -mt-2">Flight shape is reconstructed from GPS — just log the contact.</p>
-                <div>
-                    <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1.5 text-center">Contact (Mishit)</label>
-                    <div class="grid grid-cols-4 gap-1">
-                        <div class="col-span-4 flex segmented-control red-theme w-full mb-1">
-                            <input type="radio" id="con-pure" name="vec-contact" value="Pure" checked><label for="con-pure" class="!bg-emerald-500/20 !border-emerald-500 !text-emerald-400">Pure</label>
-                        </div>
-                        <div class="col-span-4 flex segmented-control red-theme w-full">
-                            <input type="radio" id="con-toe" name="vec-contact" value="Toe"><label for="con-toe">Toe</label>
-                            <input type="radio" id="con-heel" name="vec-contact" value="Heel"><label for="con-heel">Heel</label>
-                            <input type="radio" id="con-fat" name="vec-contact" value="Fat"><label for="con-fat">Fat</label>
-                        </div>
-                        <div class="col-span-4 flex segmented-control red-theme w-full">
-                            <input type="radio" id="con-thin" name="vec-contact" value="Thin"><label for="con-thin">Thin</label>
-                            <input type="radio" id="con-top" name="vec-contact" value="Top"><label for="con-top">Top</label>
-                            <input type="radio" id="con-shank" name="vec-contact" value="Shank"><label for="con-shank">Shank</label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="short-game-ui" class="space-y-6 hidden">
-                <div>
-                    <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1.5 text-center">Distance Control</label>
-                    <div class="grid grid-cols-2 gap-1 mb-1">
-                        <div class="flex segmented-control blue-theme w-full">
-                            <input type="radio" id="sg-dist-p" name="sg-dist" value="Perfect" checked><label for="sg-dist-p" class="!text-emerald-400">Perfect</label>
-                        </div>
-                        <div class="flex segmented-control blue-theme w-full">
-                            <input type="radio" id="sg-dist-made" name="sg-dist" value="Made"><label for="sg-dist-made" class="!text-emerald-400">Made</label>
-                        </div>
-                    </div>
-                    <div class="flex segmented-control blue-theme w-full">
-                        <input type="radio" id="sg-dist-ws" name="sg-dist" value="Way Short"><label for="sg-dist-ws" class="text-[9px]">Way Short</label>
-                        <input type="radio" id="sg-dist-s" name="sg-dist" value="Short"><label for="sg-dist-s">Short</label>
-                        <input type="radio" id="sg-dist-l" name="sg-dist" value="Long"><label for="sg-dist-l">Long</label>
-                        <input type="radio" id="sg-dist-b" name="sg-dist" value="Blasted"><label for="sg-dist-b" class="text-[9px]">Blasted</label>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1.5 text-center">Line / Read</label>
-                    <div class="flex segmented-control red-theme w-full">
-                        <input type="radio" id="sg-line-pulled" name="sg-line" value="Pulled"><label for="sg-line-pulled">Pulled</label>
-                        <input type="radio" id="sg-line-on" name="sg-line" value="On Line" checked><label for="sg-line-on" class="!text-emerald-400">On Line</label>
-                        <input type="radio" id="sg-line-pushed" name="sg-line" value="Pushed"><label for="sg-line-pushed">Pushed</label>
-                        <input type="radio" id="sg-line-misread" name="sg-line" value="Misread"><label for="sg-line-misread">Misread</label>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex gap-2 pt-2 border-t border-slate-700">
-                <button onclick="document.getElementById('flight-modal').classList.add('hidden')" class="w-1/3 bg-slate-700 text-white font-bold py-3.5 rounded-xl transition active:scale-95">Cancel</button>
-                <button onclick="commitFlightDetails()" class="flex-1 bg-emerald-500 text-slate-950 font-bold py-3.5 rounded-xl shadow-lg transition active:scale-95">Log Shot</button>
-            </div>
-        </div>
-    </div>
-
     <div id="club-detail-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-[100] flex flex-col items-center justify-center p-4">
         <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
             <div class="text-center border-b border-slate-700 pb-3">
@@ -541,7 +582,8 @@
                 q1: 3, q2: 3, q3: 3, q4: 3, q5: 3, // 1-4 scale survey
                 played: false,
                 shots: [],
-                target: null
+                target: null,
+                pin: null
             }));
         }
         let roundData = freshRoundData();
@@ -554,7 +596,7 @@
 
         // Fill in any fields missing from an older saved schema so stats never compute against undefined.
         function normalizeHole(hole, i) {
-            const fresh = { hole: i + 1, par: courseData[i].par, score: courseData[i].par, putts: 2, q1: 3, q2: 3, q3: 3, q4: 3, q5: 3, played: false, shots: [], target: null };
+            const fresh = { hole: i + 1, par: courseData[i].par, score: courseData[i].par, putts: 2, q1: 3, q2: 3, q3: 3, q4: 3, q5: 3, played: false, shots: [], target: null, pin: null };
             const merged = Object.assign(fresh, hole);
             if (!Array.isArray(merged.shots)) merged.shots = [];
             return merged;
@@ -592,11 +634,14 @@
             roundData = freshRoundData();
             currentHoleIndex = 0;
             if(targetMarker) { map.removeLayer(targetMarker); targetMarker = null; }
+            if(pinMarker) { map.removeLayer(pinMarker); pinMarker = null; }
             resetToSetupState(); loadHoleDataIntoUI(); calculateStats();
+            loadPinMarker();
             switchTab('gps');
         }
 
-        let map, userMarker, targetMarker, landingMarker, pitchMarker, aimMarker;
+        let map, userMarker, targetMarker, pinMarker, landingMarker, pitchMarker, aimMarker;
+        let placingPin = false; // armed by the "Set Pin" button — next map tap places the pin marker
         let placingMode = null; // null | 'pitch' | 'aim' — what a landing-state map tap places
         let intendedTargetLine = null;
         let shotMarkersLayer = [], shotPolyline = null;
@@ -608,9 +653,10 @@
         let selectedClub = 'Driver';
         let selectedShotType = 'Full Swing';
         
-        let appMode = 'setup'; 
+        let appMode = 'setup';
         let isSimMode = false;
         let gpsWatchId = null;
+        let hasLockedGps = false;
 
         const liesMap = ['Tee Box', 'Fairway', 'Rough', 'Sand', 'Waste', 'Fringe', 'Green'];
         const shortGameTypes = ['Pitch', 'Chip', 'Flop', 'Bunker', 'Putt'];
@@ -623,6 +669,7 @@
             initMap();
             loadHoleDataIntoUI();
             loadTargetMarker();
+            loadPinMarker();
             startLiveLocationTracking();
             requestWakeLock();
         };
@@ -649,6 +696,15 @@
             }).addTo(map);
 
             map.on('click', function(e) {
+                if (placingPin) {
+                    placePinMarker(e.latlng);
+                    roundData[currentHoleIndex].pin = { lat: e.latlng.lat, lng: e.latlng.lng };
+                    saveRound();
+                    document.getElementById('pin-readout').classList.remove('hidden');
+                    togglePinPlacement();
+                    updateDistances();
+                    return;
+                }
                 if(!currentPosition) return;
                 if (appMode === 'setup') {
                     placeTargetMarker(e.latlng);
@@ -703,6 +759,40 @@
             updateDistances();
         }
 
+        // Pin/hole-location marker — placed manually via the "Set Pin" button so it
+        // doesn't depend on GPS (most players won't have their phone on the green).
+        // Used as the canonical "holed out" position for the Made-putt shortcut and
+        // strokes-gained calculations.
+        function placePinMarker(latlng) {
+            if (pinMarker) pinMarker.setLatLng(latlng);
+            else {
+                const icon = L.divIcon({ className: '', html: `<div style="font-size:20px; line-height:1; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));">🚩</div>`, iconSize: [24, 24], iconAnchor: [4, 20] });
+                pinMarker = L.marker(latlng, {icon: icon}).addTo(map);
+            }
+        }
+
+        // Restore the saved pin marker (if any) for the current hole.
+        function loadPinMarker() {
+            const p = roundData[currentHoleIndex].pin;
+            if (p) {
+                placePinMarker(L.latLng(p.lat, p.lng));
+                document.getElementById('pin-readout').classList.remove('hidden');
+            } else {
+                document.getElementById('pin-readout').classList.add('hidden');
+            }
+            updateDistances();
+        }
+
+        // Arms/disarms one-tap pin placement. While armed, the next map tap places
+        // the pin regardless of the current shot-setup state.
+        function togglePinPlacement() {
+            placingPin = !placingPin;
+            const btn = document.getElementById('set-pin-btn');
+            document.getElementById('set-pin-label').textContent = placingPin ? 'Tap Map' : 'Set Pin';
+            btn.classList.toggle('!border-amber-400', placingPin);
+            btn.classList.toggle('!bg-amber-500/20', placingPin);
+        }
+
         function toggleSimMode() {
             isSimMode = !isSimMode;
             const btn = document.getElementById('gps-toggle');
@@ -748,11 +838,21 @@
                     currentPosition = pos.coords;
                     document.getElementById('gps-text').innerHTML = `±${Math.round(pos.coords.accuracy * 3.28)}ft`;
                     updateUserMarker(pos.coords.latitude, pos.coords.longitude, false);
+                    if (!hasLockedGps) {
+                        hasLockedGps = true;
+                        map.setView([pos.coords.latitude, pos.coords.longitude], 18);
+                    }
                     updateDistances();
                 },
                 (err) => { if(!isSimMode) document.getElementById('gps-text').textContent = "GPS Lost"; },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
+        }
+
+        // Re-center the map on the user's current position (live GPS or sim marker).
+        function recenterOnUser() {
+            if (!currentPosition) return;
+            map.setView([currentPosition.latitude, currentPosition.longitude], map.getZoom() < 17 ? 18 : map.getZoom());
         }
 
         function updateDistances() {
@@ -762,6 +862,11 @@
                 const dist = Math.round(userLL.distanceTo(targetMarker.getLatLng()) * 1.09361);
                 document.getElementById('target-distance').innerHTML = `${dist}<span class="text-xs text-slate-400">yd</span>`;
                 suggestClub(dist);
+            }
+            if (appMode === 'setup' && pinMarker) {
+                const userLL = L.latLng(currentPosition.latitude, currentPosition.longitude);
+                const dist = Math.round(userLL.distanceTo(pinMarker.getLatLng()) * 1.09361);
+                document.getElementById('pin-distance').innerHTML = `${dist}<span class="text-xs text-amber-400/70">yd</span>`;
             }
             if (appMode === 'landing' && activeShotStartLoc && landingMarker) {
                 const startLL = L.latLng(activeShotStartLoc.lat, activeShotStartLoc.lon);
@@ -1125,29 +1230,35 @@
                 // Default clean execution
                 startLandingState({ execution: "Quick Log", isShortGame: shortGameTypes.includes(selectedShotType) });
             } else {
-                openFlightModal();
+                openExecutionState();
             }
         }
 
-        function openFlightModal() {
-            document.getElementById('flight-modal').classList.remove('hidden');
-            document.getElementById('flight-modal-subtitle').textContent = `${selectedShotType} • ${selectedClub}`;
+        function openExecutionState() {
+            document.getElementById('state-setup').classList.add('hidden');
+            document.getElementById('state-execution').classList.remove('hidden');
+            document.getElementById('exec-subtitle-text').textContent = `${selectedShotType} • ${selectedClub}`;
 
             const isSG = shortGameTypes.includes(selectedShotType);
             if (isSG) {
                 document.getElementById('full-swing-ui').classList.add('hidden');
                 document.getElementById('short-game-ui').classList.remove('hidden');
-                
+
                 // Reset defaults
                 document.getElementById('sg-dist-p').checked = true;
                 document.getElementById('sg-line-on').checked = true;
             } else {
                 document.getElementById('full-swing-ui').classList.remove('hidden');
                 document.getElementById('short-game-ui').classList.add('hidden');
-                
+
                 // Reset defaults
                 document.getElementById('con-pure').checked = true;
             }
+        }
+
+        function cancelExecution() {
+            document.getElementById('state-execution').classList.add('hidden');
+            document.getElementById('state-setup').classList.remove('hidden');
         }
 
         function commitFlightDetails() {
@@ -1165,8 +1276,19 @@
                 mishitTracker = contact;
             }
 
-            document.getElementById('flight-modal').classList.add('hidden');
+            document.getElementById('state-execution').classList.add('hidden');
             startLandingState({ execution: executionDesc, mishit: mishitTracker, isShortGame: isSG });
+
+            if (executionDesc === "Made") {
+                // Ball went in the hole — snap the landing marker to the pin (falling back
+                // to the target) position, finalize the shot, and jump to the scorecard.
+                if (landingMarker) {
+                    const holeLL = pinMarker ? pinMarker.getLatLng() : (targetMarker ? targetMarker.getLatLng() : landingMarker.getLatLng());
+                    landingMarker.setLatLng(holeLL);
+                }
+                confirmLanding();
+                openScorecard();
+            }
         }
 
         function startLandingState(execData) {
@@ -1261,7 +1383,7 @@
             placingMode = null;
             updateStepChips();
 
-            document.getElementById('state-landing').classList.add('hidden'); document.getElementById('state-setup').classList.remove('hidden');
+            document.getElementById('state-landing').classList.add('hidden'); document.getElementById('state-execution').classList.add('hidden'); document.getElementById('state-setup').classList.remove('hidden');
             document.getElementById('landing-readout-container').classList.add('hidden'); document.getElementById('target-readout-container').classList.remove('hidden');
             renderLieOptions();
             applyLieAutoAdjust(selectedLie);
@@ -1318,6 +1440,100 @@
             
             if(currentHoleIndex < 17) changeHole(1);
             else switchTab('stats');
+        }
+
+        // --- STROKES GAINED ENGINE ---
+        // Approximate "expected strokes to finish the hole" baselines, derived from
+        // published strokes-gained research. Distances in yards (feet for putting).
+        // Absolute values are scratch-level, so totals run negative for most golfers —
+        // what matters is the relative split across categories and the trend over time.
+        const SG_BASELINES = {
+            tee:    [[50,2.2],[100,2.6],[150,2.95],[200,3.05],[250,3.2],[300,3.45],[350,3.7],[400,3.95],[450,4.15],[500,4.35],[550,4.55],[600,4.75]],
+            fairway:[[10,2.4],[30,2.7],[50,2.8],[75,2.85],[100,2.92],[125,2.98],[150,3.05],[175,3.12],[200,3.23],[225,3.45],[250,3.65]],
+            rough:  [[10,2.5],[30,2.75],[50,2.9],[75,2.98],[100,3.05],[125,3.12],[150,3.23],[175,3.35],[200,3.5],[225,3.7],[250,3.85]],
+            sand:   [[5,2.3],[10,2.5],[30,2.9],[50,3.0],[75,3.05],[100,3.15],[150,3.35],[200,3.65]],
+            around: [[0,1.0],[3,2.1],[5,2.3],[10,2.5],[20,2.65],[30,2.75],[50,2.85]],
+            putt:   [[1,1.001],[2,1.01],[3,1.04],[4,1.14],[5,1.21],[6,1.27],[8,1.40],[10,1.49],[15,1.66],[20,1.78],[30,1.93],[40,2.03],[50,2.11],[60,2.18],[90,2.35]]
+        };
+
+        function interpBaseline(table, x) {
+            if (x <= table[0][0]) return table[0][1];
+            if (x >= table[table.length - 1][0]) return table[table.length - 1][1];
+            for (let i = 0; i < table.length - 1; i++) {
+                const [x0, y0] = table[i], [x1, y1] = table[i + 1];
+                if (x >= x0 && x <= x1) return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+            }
+        }
+
+        // Expected strokes to finish the hole from a given distance/lie.
+        function expectedStrokes(distYds, lie, par) {
+            if (distYds <= 0) return 0;
+            if (lie === 'Green') return interpBaseline(SG_BASELINES.putt, distYds * 3);
+            if (distYds <= 30 && lie !== 'Tee Box') return interpBaseline(SG_BASELINES.around, distYds);
+            if (lie === 'Sand' || lie === 'Waste') return interpBaseline(SG_BASELINES.sand, distYds);
+            if (lie === 'Rough') return interpBaseline(SG_BASELINES.rough, distYds);
+            if (lie === 'Tee Box' && par !== 3) return interpBaseline(SG_BASELINES.tee, distYds);
+            return interpBaseline(SG_BASELINES.fairway, distYds);
+        }
+
+        // Categorizes a shot for the SG breakdown based on its starting lie/distance.
+        function sgCategory(shot, distBefore, par) {
+            if (shot.lie === 'Green') return 'putt';
+            if (distBefore <= 30) return 'arg';
+            if (shot.lie === 'Tee Box' && par !== 3) return 'ott';
+            return 'app';
+        }
+
+        // Walks a hole's shots in order, using each shot's logged start/rest GPS
+        // positions to compute distance-to-hole before and after, against the
+        // final shot's rest position (assumed holed-out).
+        function computeHoleSG(hole) {
+            const shots = hole.shots;
+            if (!shots || shots.length === 0) return null;
+            if (shots.some(s => s.restLat === undefined)) return null;
+
+            const final = hole.pin ? L.latLng(hole.pin.lat, hole.pin.lng) : L.latLng(shots[shots.length - 1].restLat, shots[shots.length - 1].restLon);
+            return shots.map((shot, i) => {
+                const startLL = L.latLng(shot.lat, shot.lon);
+                const endLL = L.latLng(shot.restLat, shot.restLon);
+                const distBefore = startLL.distanceTo(final) * 1.09361;
+                const distAfter = endLL.distanceTo(final) * 1.09361;
+                const expBefore = expectedStrokes(distBefore, shot.lie, hole.par);
+                const expAfter = i === shots.length - 1 ? 0 : expectedStrokes(distAfter, shots[i + 1].lie, hole.par);
+                return { shot, sg: expBefore - expAfter - 1, category: sgCategory(shot, distBefore, hole.par) };
+            });
+        }
+
+        // Sums strokes-gained by category across all played holes in this round.
+        function aggregateSG() {
+            const totals = { ott: 0, app: 0, arg: 0, putt: 0 };
+            let holesWithData = 0;
+            roundData.forEach(hole => {
+                if (!hole.played) return;
+                const res = computeHoleSG(hole);
+                if (!res) return;
+                holesWithData++;
+                res.forEach(r => { totals[r.category] += r.sg; });
+            });
+            const total = totals.ott + totals.app + totals.arg + totals.putt;
+            return { totals, total, holesWithData };
+        }
+
+        function renderStrokesGained() {
+            const agg = aggregateSG();
+            const fmt = (v) => (v > 0 ? '+' : '') + v.toFixed(1);
+            const colorClass = (v) => v > 0.05 ? 'text-emerald-400' : v < -0.05 ? 'text-red-400' : 'text-white';
+            const setBox = (id, val) => {
+                const el = document.getElementById(id);
+                el.textContent = fmt(val);
+                el.className = `text-lg font-black ${colorClass(val)}`;
+            };
+            setBox('sg-total', agg.total);
+            setBox('sg-ott', agg.totals.ott);
+            setBox('sg-app', agg.totals.app);
+            setBox('sg-arg', agg.totals.arg);
+            setBox('sg-putt', agg.totals.putt);
+            document.getElementById('sg-note').classList.toggle('hidden', agg.holesWithData > 0);
         }
 
         // --- STATS ENGINE ---
@@ -1395,6 +1611,7 @@
             renderScorecardGrid();
             renderScoringDistribution();
             renderRoundHistory();
+            renderStrokesGained();
             updateProfileFromStats();
         }
 
@@ -1636,13 +1853,16 @@
 
         function changeHole(direction) {
             if (appMode === 'landing' && !confirm("You have a shot in progress. Discard it and change holes?")) return;
+            if (placingPin) togglePinPlacement();
             currentHoleIndex += direction;
             if (currentHoleIndex < 0) currentHoleIndex = 0;
             if (currentHoleIndex > 17) currentHoleIndex = 17;
             if(targetMarker) { map.removeLayer(targetMarker); targetMarker = null; }
+            if(pinMarker) { map.removeLayer(pinMarker); pinMarker = null; }
             saveRound();
             resetToSetupState(); loadHoleDataIntoUI();
             loadTargetMarker();
+            loadPinMarker();
         }
 
         function loadHoleDataIntoUI() {
@@ -1654,6 +1874,7 @@
         }
 
         function switchTab(tabId) {
+            if (placingPin) togglePinPlacement();
             document.querySelectorAll('.app-section').forEach(sec => sec.classList.add('hidden'));
             document.getElementById(`${tabId}-section`).classList.remove('hidden');
             document.querySelectorAll('nav button').forEach(btn => { btn.classList.remove('text-emerald-400'); btn.classList.add('text-slate-500'); });
