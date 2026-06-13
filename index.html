@@ -83,18 +83,18 @@
     <main class="max-w-md mx-auto p-3 space-y-3">
 
         <section id="gps-section" class="app-section space-y-3">
-            
-            <div class="flex justify-between items-center bg-slate-800 p-2 rounded-xl border border-slate-700 shadow-md">
-                <button onclick="changeHole(-1)" class="p-2 text-slate-400 hover:text-white transition"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
-                <div class="text-center">
-                    <h2 class="text-lg font-bold text-white" id="current-hole-title">Hole 1</h2>
-                    <p class="text-[10px] text-slate-400 uppercase tracking-widest font-semibold" id="hole-par-view">Par 4 • 385 Yds</p>
-                </div>
-                <button onclick="changeHole(1)" class="p-2 text-slate-400 hover:text-white transition"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
-            </div>
 
-            <div class="relative w-full h-72 rounded-xl overflow-hidden border-2 border-slate-700 shadow-xl">
+            <div class="relative w-full h-[28rem] rounded-xl overflow-hidden border-2 border-slate-700 shadow-xl">
                 <div id="map" class="w-full h-full z-0 bg-slate-800"></div>
+
+                <div class="absolute top-0 left-0 right-0 z-20 flex justify-between items-center px-1 pt-2 pb-6 bg-gradient-to-b from-black/70 via-black/30 to-transparent pointer-events-none">
+                    <button onclick="changeHole(-1)" class="pointer-events-auto p-2 text-white/90 hover:text-white transition"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                    <div class="text-center">
+                        <h2 class="text-lg font-bold text-white drop-shadow-md" id="current-hole-title">Hole 1</h2>
+                        <p class="text-[10px] text-slate-200 uppercase tracking-widest font-semibold drop-shadow-md" id="hole-par-view">Par 4 • 385 Yds</p>
+                    </div>
+                    <button onclick="changeHole(1)" class="pointer-events-auto p-2 text-white/90 hover:text-white transition"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                </div>
 
                 <button onclick="recenterOnUser()" id="recenter-btn" class="absolute bottom-2 right-2 z-10 bg-slate-900/90 backdrop-blur border border-slate-600 rounded-lg p-2 shadow-lg text-emerald-400 active:scale-95 transition">
                     <i data-lucide="locate-fixed" class="w-4 h-4"></i>
@@ -104,7 +104,7 @@
                     <i data-lucide="flag" class="w-4 h-4"></i> <span id="set-pin-label">Set Pin</span>
                 </button>
 
-                <div class="absolute top-2 left-2 z-10 bg-slate-900/90 backdrop-blur border border-slate-600 rounded-lg p-2 text-center shadow-lg min-w-[64px] hidden" id="weather-readout">
+                <div class="absolute top-14 left-2 z-10 bg-slate-900/90 backdrop-blur border border-slate-600 rounded-lg p-2 text-center shadow-lg min-w-[64px] hidden" id="weather-readout">
                     <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mb-0.5">Wind</span>
                     <div class="flex items-center justify-center gap-1">
                         <i data-lucide="arrow-up" class="w-3.5 h-3.5 text-sky-400" id="wind-arrow" style="transform: rotate(0deg);"></i>
@@ -113,7 +113,7 @@
                     <div class="text-[9px] font-bold leading-none mt-1 text-slate-400" id="weather-temp"></div>
                 </div>
 
-                <div class="absolute top-2 right-2 z-10 flex flex-col gap-2 pointer-events-none" id="target-readout-container">
+                <div class="absolute top-14 right-2 z-10 flex flex-col gap-2 pointer-events-none" id="target-readout-container">
                     <div class="bg-slate-900/90 backdrop-blur border border-slate-600 rounded-lg p-2 text-center shadow-lg min-w-[80px]">
                         <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mb-0.5">Target</span>
                         <div class="text-xl font-black text-cyan-400 leading-none" id="target-distance">--</div>
@@ -126,7 +126,7 @@
                     </div>
                 </div>
 
-                <div class="absolute top-2 right-2 z-10 flex flex-col gap-2 pointer-events-none hidden" id="landing-readout-container">
+                <div class="absolute top-14 right-2 z-10 flex flex-col gap-2 pointer-events-none hidden" id="landing-readout-container">
                     <div class="bg-emerald-900/90 backdrop-blur border border-emerald-500 rounded-lg p-2 text-center shadow-lg min-w-[80px]">
                         <span class="text-[9px] uppercase tracking-wider text-emerald-300 font-bold block mb-0.5">Distance</span>
                         <div class="text-xl font-black text-white leading-none" id="live-shot-distance">0</div>
@@ -609,12 +609,19 @@
         // --- GOLFER PROFILE (bag of clubs + approximate carry yardages) ---
         const PROFILE_KEY = 'greendrive-profile';
         const DEFAULT_BAG = [
-            { name: 'Driver', yardage: 230 },
-            { name: '3 Wood', yardage: 210 },
-            { name: 'Hybrid', yardage: 190 },
-            { name: '5 Iron', yardage: 170 },
-            { name: '7 Iron', yardage: 150 },
-            { name: 'Pitch Wedge', yardage: 100 },
+            { name: 'Driver', yardage: 260 },
+            { name: '3 Wood', yardage: 220 },
+            { name: '4 Hybrid', yardage: 210 },
+            { name: '5 Iron', yardage: 200 },
+            { name: '6 Iron', yardage: 190 },
+            { name: '7 Iron', yardage: 184 },
+            { name: '8 Iron', yardage: 172 },
+            { name: '9 Iron', yardage: 165 },
+            { name: 'Pitching Wedge', yardage: 155 },
+            { name: 'Gap Wedge', yardage: 135 },
+            { name: '56°', yardage: 120 },
+            { name: '60°', yardage: 105 },
+            { name: '64°', yardage: 95 },
             { name: 'Putter', yardage: 0 }
         ];
         let golferProfile = { clubs: DEFAULT_BAG.map(c => ({...c})) };
@@ -690,15 +697,14 @@
             currentHoleIndex = 0;
             if(targetMarker) { map.removeLayer(targetMarker); targetMarker = null; }
             if(pinMarker) { map.removeLayer(pinMarker); pinMarker = null; }
-            if(targetLine) { map.removeLayer(targetLine); targetLine = null; }
-            if(pinLine) { map.removeLayer(pinLine); pinLine = null; }
+            if(rangeLine) { map.removeLayer(rangeLine); rangeLine = null; }
             resetToSetupState(); loadHoleDataIntoUI(); calculateStats();
             loadPinMarker();
             switchTab('gps');
         }
 
         let map, userMarker, targetMarker, pinMarker, landingMarker, pitchMarker, aimMarker;
-        let targetLine = null, pinLine = null; // dashed lines from player to target/pin, like other GPS golf apps
+        let rangeLine = null; // single dashed line: player -> target -> pin, like other GPS golf apps
         let currentElevationM = null; // device altitude (meters), when available
         let elevationFetchInFlight = false;
         const elevationCache = {}; // "lat,lon" (5dp) -> meters, avoids redundant lookups
@@ -907,24 +913,19 @@
             document.getElementById('wind-arrow').style.transform = `rotate(${arrowDeg}deg)`;
         }
 
-        // Draws/updates dashed lines from the player's position to the target and pin
-        // markers, mirroring the "rangefinder line" most GPS golf apps show.
+        // Draws/updates a single dashed line from the player's position through the
+        // target and on to the pin, mirroring the "rangefinder line" most GPS golf apps show.
         function redrawTargetPinLines() {
             if (!currentPosition) return;
             const userLL = L.latLng(currentPosition.latitude, currentPosition.longitude);
-            if (appMode === 'setup' && targetMarker) {
-                const pts = [userLL, targetMarker.getLatLng()];
-                if (targetLine) targetLine.setLatLngs(pts);
-                else targetLine = L.polyline(pts, { color: '#22d3ee', weight: 2, opacity: 0.7, dashArray: '6,6' }).addTo(map);
-            } else if (targetLine) {
-                map.removeLayer(targetLine); targetLine = null;
-            }
-            if (appMode === 'setup' && pinMarker) {
-                const pts = [userLL, pinMarker.getLatLng()];
-                if (pinLine) pinLine.setLatLngs(pts);
-                else pinLine = L.polyline(pts, { color: '#fbbf24', weight: 2, opacity: 0.7, dashArray: '6,6' }).addTo(map);
-            } else if (pinLine) {
-                map.removeLayer(pinLine); pinLine = null;
+            const pts = [userLL];
+            if (appMode === 'setup' && targetMarker) pts.push(targetMarker.getLatLng());
+            if (appMode === 'setup' && pinMarker) pts.push(pinMarker.getLatLng());
+            if (pts.length > 1) {
+                if (rangeLine) rangeLine.setLatLngs(pts);
+                else rangeLine = L.polyline(pts, { color: '#22d3ee', weight: 2, opacity: 0.7, dashArray: '6,6' }).addTo(map);
+            } else if (rangeLine) {
+                map.removeLayer(rangeLine); rangeLine = null;
             }
         }
 
@@ -1119,12 +1120,12 @@
             if (lie === 'Green') { selectClub('Putter'); selectShotType('Putt'); }
             else if (lie === 'Sand') {
                 selectShotType('Bunker');
-                if (selectedClub === 'Putter') selectClub('Pitch Wedge');
+                if (selectedClub === 'Putter') selectClub('Pitching Wedge');
             }
             else if (lie === 'Tee Box') {
                 if (selectedClub === 'Putter' || selectedShotType === 'Putt') { selectClub(golferProfile.clubs[0].name); selectShotType('Full Swing'); }
             }
-            else if (selectedClub === 'Putter' && lie !== 'Fringe') { selectClub('Pitch Wedge'); selectShotType('Pitch'); }
+            else if (selectedClub === 'Putter' && lie !== 'Fringe') { selectClub('Pitching Wedge'); selectShotType('Pitch'); }
         }
 
         function selectClub(clubName) {
@@ -2248,8 +2249,7 @@
             if (currentHoleIndex > 17) currentHoleIndex = 17;
             if(targetMarker) { map.removeLayer(targetMarker); targetMarker = null; }
             if(pinMarker) { map.removeLayer(pinMarker); pinMarker = null; }
-            if(targetLine) { map.removeLayer(targetLine); targetLine = null; }
-            if(pinLine) { map.removeLayer(pinLine); pinLine = null; }
+            if(rangeLine) { map.removeLayer(rangeLine); rangeLine = null; }
             saveRound();
             resetToSetupState(); loadHoleDataIntoUI();
             loadTargetMarker();
