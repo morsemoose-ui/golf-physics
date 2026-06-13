@@ -104,14 +104,25 @@
                     <i data-lucide="flag" class="w-4 h-4"></i> <span id="set-pin-label">Set Pin</span>
                 </button>
 
+                <div class="absolute top-2 left-2 z-10 bg-slate-900/90 backdrop-blur border border-slate-600 rounded-lg p-2 text-center shadow-lg min-w-[64px] hidden" id="weather-readout">
+                    <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mb-0.5">Wind</span>
+                    <div class="flex items-center justify-center gap-1">
+                        <i data-lucide="arrow-up" class="w-3.5 h-3.5 text-sky-400" id="wind-arrow" style="transform: rotate(0deg);"></i>
+                        <span class="text-base font-black text-sky-300 leading-none" id="wind-speed">--</span>
+                    </div>
+                    <div class="text-[9px] font-bold leading-none mt-1 text-slate-400" id="weather-temp"></div>
+                </div>
+
                 <div class="absolute top-2 right-2 z-10 flex flex-col gap-2 pointer-events-none" id="target-readout-container">
                     <div class="bg-slate-900/90 backdrop-blur border border-slate-600 rounded-lg p-2 text-center shadow-lg min-w-[80px]">
                         <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mb-0.5">Target</span>
                         <div class="text-xl font-black text-cyan-400 leading-none" id="target-distance">--</div>
+                        <div class="text-[9px] font-bold leading-none mt-1 h-2.5" id="target-elev"></div>
                     </div>
                     <div class="bg-slate-900/90 backdrop-blur border border-amber-500/40 rounded-lg p-2 text-center shadow-lg min-w-[80px] hidden" id="pin-readout">
                         <span class="text-[9px] uppercase tracking-wider text-amber-400 font-bold block mb-0.5">Pin</span>
                         <div class="text-xl font-black text-amber-300 leading-none" id="pin-distance">--</div>
+                        <div class="text-[9px] font-bold leading-none mt-1 h-2.5" id="pin-elev"></div>
                     </div>
                 </div>
 
@@ -274,10 +285,22 @@
                 <div id="scorecard-grid" class="space-y-2"></div>
             </div>
 
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-3 shadow-xl flex items-center justify-between gap-2">
+                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Stats Range</span>
+                <select id="stats-filter-select" onchange="setStatsFilter(this.value)" class="bg-slate-900 border border-slate-600 text-white text-xs rounded-lg px-2 py-1.5 font-semibold focus:outline-none focus:border-emerald-500">
+                    <option value="round">This Round</option>
+                    <option value="7d">Last 7 Days</option>
+                    <option value="30d">Last 30 Days</option>
+                    <option value="ytd">This Year</option>
+                    <option value="all">All Time</option>
+                </select>
+            </div>
+
             <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-xl">
                 <h2 class="text-sm font-bold text-white mb-3 uppercase tracking-wider flex items-center gap-2">
                     <i data-lucide="bar-chart" class="w-4 h-4 text-emerald-400"></i> Mental & Execution (Avg)
                 </h2>
+                <div id="mental-radar" class="mb-2"></div>
                 <div class="grid grid-cols-2 gap-3">
                     <div class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-center">
                         <span class="text-[9px] uppercase text-slate-400 font-bold block">Strategy</span>
@@ -319,8 +342,32 @@
             </div>
 
             <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-xl">
+                <h2 class="text-sm font-bold text-white mb-3 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="target" class="w-4 h-4 text-emerald-400"></i> Greens &amp; Fairways
+                </h2>
+                <div id="reg-radar" class="mb-2"></div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="bg-slate-900 p-2 rounded-lg border border-slate-700 text-center">
+                        <p class="text-[9px] text-slate-400 uppercase font-semibold mb-1">GIR</p>
+                        <p class="text-xl font-black text-emerald-400" id="stat-gir">--</p>
+                        <p class="text-[9px] text-slate-500" id="stat-gir-frac">0/0</p>
+                    </div>
+                    <div class="bg-slate-900 p-2 rounded-lg border border-slate-700 text-center">
+                        <p class="text-[9px] text-slate-400 uppercase font-semibold mb-1">Fairways</p>
+                        <p class="text-xl font-black text-cyan-400" id="stat-fir">--</p>
+                        <p class="text-[9px] text-slate-500" id="stat-fir-frac">0/0</p>
+                    </div>
+                    <div class="bg-slate-900 p-2 rounded-lg border border-slate-700 text-center">
+                        <p class="text-[9px] text-slate-400 uppercase font-semibold mb-1">Scrambling</p>
+                        <p class="text-xl font-black text-amber-400" id="stat-scramble">--</p>
+                        <p class="text-[9px] text-slate-500" id="stat-scramble-frac">0/0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-xl">
                 <h2 class="text-sm font-bold text-white mb-1 uppercase tracking-wider flex items-center gap-2">
-                    <i data-lucide="trending-up" class="w-4 h-4 text-emerald-400"></i> Strokes Gained (This Round)
+                    <i data-lucide="trending-up" class="w-4 h-4 text-emerald-400"></i> Strokes Gained
                 </h2>
                 <p class="text-[10px] text-slate-400 mb-3" id="sg-note">Log full shots with a landing position to see your strokes-gained breakdown.</p>
                 <div class="grid grid-cols-5 gap-1.5">
@@ -349,7 +396,7 @@
 
             <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-xl">
                 <h2 class="text-sm font-bold text-white mb-3 uppercase tracking-wider flex items-center gap-2">
-                    <i data-lucide="target" class="w-4 h-4 text-emerald-400"></i> Scoring Distribution (Lifetime)
+                    <i data-lucide="target" class="w-4 h-4 text-emerald-400"></i> Scoring Distribution
                 </h2>
                 <div class="grid grid-cols-5 gap-1.5">
                     <div class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-center">
@@ -643,12 +690,20 @@
             currentHoleIndex = 0;
             if(targetMarker) { map.removeLayer(targetMarker); targetMarker = null; }
             if(pinMarker) { map.removeLayer(pinMarker); pinMarker = null; }
+            if(targetLine) { map.removeLayer(targetLine); targetLine = null; }
+            if(pinLine) { map.removeLayer(pinLine); pinLine = null; }
             resetToSetupState(); loadHoleDataIntoUI(); calculateStats();
             loadPinMarker();
             switchTab('gps');
         }
 
         let map, userMarker, targetMarker, pinMarker, landingMarker, pitchMarker, aimMarker;
+        let targetLine = null, pinLine = null; // dashed lines from player to target/pin, like other GPS golf apps
+        let currentElevationM = null; // device altitude (meters), when available
+        let elevationFetchInFlight = false;
+        const elevationCache = {}; // "lat,lon" (5dp) -> meters, avoids redundant lookups
+        let currentWeather = null; // { windSpeedMph, windDirDeg, tempF, fetchedAt }
+        let weatherFetchInFlight = false;
         let placingPin = false; // armed by the "Set Pin" button — next map tap places the pin marker
         let placingMode = null; // null | 'pitch' | 'aim' — what a landing-state map tap places
         let intendedTargetLine = null;
@@ -661,6 +716,8 @@
         let selectedClub = 'Driver';
         let selectedShotType = 'Full Swing';
         
+        let statsFilter = 'round'; // 'round' | '7d' | '30d' | 'ytd' | 'all' — scope for the Lifetime-capable stat cards
+
         let appMode = 'setup';
         let isSimMode = false;
         let gpsWatchId = null;
@@ -757,6 +814,12 @@
                 const icon = L.divIcon({ className: '', html: `<div style="background:#ef4444;width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 5px #000;"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
                 targetMarker = L.marker(latlng, {icon: icon}).addTo(map);
             }
+            fetchElevation(latlng.lat, latlng.lng).then(elev => {
+                if (elev == null) return;
+                roundData[currentHoleIndex].target = Object.assign({}, roundData[currentHoleIndex].target, { lat: latlng.lat, lng: latlng.lng, elev });
+                saveRound();
+                updateDistances();
+            });
         }
 
         // Restore the saved target marker (if any) for the current hole.
@@ -765,6 +828,104 @@
             if (t) placeTargetMarker(L.latLng(t.lat, t.lng));
             else document.getElementById('target-distance').innerHTML = '--';
             updateDistances();
+        }
+
+        // --- ELEVATION ---
+        // Looks up ground elevation (meters) for a lat/lon via Open-Meteo's free elevation API.
+        // Used for target/pin markers, which are placed by map tap and have no GPS altitude of their own.
+        async function fetchElevation(lat, lon) {
+            const key = `${lat.toFixed(5)},${lon.toFixed(5)}`;
+            if (key in elevationCache) return elevationCache[key];
+            try {
+                const res = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`);
+                const data = await res.json();
+                const elev = (data.elevation && data.elevation[0] != null) ? data.elevation[0] : null;
+                elevationCache[key] = elev;
+                return elev;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Ensures we have a current-position elevation, preferring live device altitude
+        // (from GPS/barometer) and falling back to a one-time lookup via Open-Meteo.
+        async function ensureCurrentElevation() {
+            if (currentElevationM != null || elevationFetchInFlight || !currentPosition) return;
+            elevationFetchInFlight = true;
+            const elev = await fetchElevation(currentPosition.latitude, currentPosition.longitude);
+            elevationFetchInFlight = false;
+            if (elev != null) {
+                currentElevationM = elev;
+                updateDistances();
+            }
+        }
+
+        // Renders an elevation-change badge (e.g. "▲ 8ft") comparing a marker's elevation
+        // to the player's current elevation. Uphill (plays longer) is red, downhill (plays
+        // shorter) is green.
+        function renderElevDiff(markerElevM) {
+            if (markerElevM == null || currentElevationM == null) return '';
+            const diffFt = Math.round((markerElevM - currentElevationM) * 3.28084);
+            if (Math.abs(diffFt) < 2) return `<span class="text-slate-500">Level</span>`;
+            const arrow = diffFt > 0 ? '▲' : '▼';
+            const color = diffFt > 0 ? 'text-red-400' : 'text-emerald-400';
+            return `<span class="${color}">${arrow} ${Math.abs(diffFt)}ft</span>`;
+        }
+
+        // --- WEATHER / WIND ---
+        // Open-Meteo current conditions for the player's position. Refreshed at most
+        // every 15 minutes since wind/temp don't change fast enough to warrant per-update calls.
+        async function ensureWeather() {
+            if (!currentPosition || weatherFetchInFlight) return;
+            if (currentWeather && (Date.now() - currentWeather.fetchedAt) < 15 * 60 * 1000) return;
+            weatherFetchInFlight = true;
+            try {
+                const { latitude, longitude } = currentPosition;
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=mph&temperature_unit=fahrenheit`);
+                const data = await res.json();
+                if (data.current) {
+                    currentWeather = {
+                        windSpeedMph: Math.round(data.current.wind_speed_10m),
+                        windDirDeg: data.current.wind_direction_10m,
+                        tempF: Math.round(data.current.temperature_2m),
+                        fetchedAt: Date.now()
+                    };
+                    renderWeather();
+                }
+            } catch (e) { /* offline or API unavailable — leave existing readout as-is */ }
+            weatherFetchInFlight = false;
+        }
+
+        // Wind direction from Open-Meteo is the direction the wind is blowing FROM.
+        // Rotate the arrow 180° so it points the direction the wind is blowing TOWARD.
+        function renderWeather() {
+            if (!currentWeather) return;
+            document.getElementById('weather-readout').classList.remove('hidden');
+            document.getElementById('wind-speed').textContent = currentWeather.windSpeedMph;
+            document.getElementById('weather-temp').textContent = `${currentWeather.tempF}°F`;
+            const arrowDeg = (currentWeather.windDirDeg + 180) % 360;
+            document.getElementById('wind-arrow').style.transform = `rotate(${arrowDeg}deg)`;
+        }
+
+        // Draws/updates dashed lines from the player's position to the target and pin
+        // markers, mirroring the "rangefinder line" most GPS golf apps show.
+        function redrawTargetPinLines() {
+            if (!currentPosition) return;
+            const userLL = L.latLng(currentPosition.latitude, currentPosition.longitude);
+            if (appMode === 'setup' && targetMarker) {
+                const pts = [userLL, targetMarker.getLatLng()];
+                if (targetLine) targetLine.setLatLngs(pts);
+                else targetLine = L.polyline(pts, { color: '#22d3ee', weight: 2, opacity: 0.7, dashArray: '6,6' }).addTo(map);
+            } else if (targetLine) {
+                map.removeLayer(targetLine); targetLine = null;
+            }
+            if (appMode === 'setup' && pinMarker) {
+                const pts = [userLL, pinMarker.getLatLng()];
+                if (pinLine) pinLine.setLatLngs(pts);
+                else pinLine = L.polyline(pts, { color: '#fbbf24', weight: 2, opacity: 0.7, dashArray: '6,6' }).addTo(map);
+            } else if (pinLine) {
+                map.removeLayer(pinLine); pinLine = null;
+            }
         }
 
         // Pin/hole-location marker — placed manually via the "Set Pin" button so it
@@ -777,6 +938,12 @@
                 const icon = L.divIcon({ className: '', html: `<div style="font-size:20px; line-height:1; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));">🚩</div>`, iconSize: [24, 24], iconAnchor: [4, 20] });
                 pinMarker = L.marker(latlng, {icon: icon}).addTo(map);
             }
+            fetchElevation(latlng.lat, latlng.lng).then(elev => {
+                if (elev == null) return;
+                roundData[currentHoleIndex].pin = Object.assign({}, roundData[currentHoleIndex].pin, { lat: latlng.lat, lng: latlng.lng, elev });
+                saveRound();
+                updateDistances();
+            });
         }
 
         // Restore the saved pin marker (if any) for the current hole.
@@ -865,22 +1032,28 @@
 
         function updateDistances() {
             if (!currentPosition) return;
+            if (currentPosition.altitude != null) currentElevationM = currentPosition.altitude;
+            else ensureCurrentElevation();
+            ensureWeather();
             if (appMode === 'setup' && targetMarker) {
                 const userLL = L.latLng(currentPosition.latitude, currentPosition.longitude);
                 const dist = Math.round(userLL.distanceTo(targetMarker.getLatLng()) * 1.09361);
                 document.getElementById('target-distance').innerHTML = `${dist}<span class="text-xs text-slate-400">yd</span>`;
+                document.getElementById('target-elev').innerHTML = renderElevDiff(roundData[currentHoleIndex].target && roundData[currentHoleIndex].target.elev);
                 suggestClub(dist);
             }
             if (appMode === 'setup' && pinMarker) {
                 const userLL = L.latLng(currentPosition.latitude, currentPosition.longitude);
                 const dist = Math.round(userLL.distanceTo(pinMarker.getLatLng()) * 1.09361);
                 document.getElementById('pin-distance').innerHTML = `${dist}<span class="text-xs text-amber-400/70">yd</span>`;
+                document.getElementById('pin-elev').innerHTML = renderElevDiff(roundData[currentHoleIndex].pin && roundData[currentHoleIndex].pin.elev);
             }
             if (appMode === 'landing' && activeShotStartLoc && landingMarker) {
                 const startLL = L.latLng(activeShotStartLoc.lat, activeShotStartLoc.lon);
                 const dist = Math.round(startLL.distanceTo(landingMarker.getLatLng()) * 1.09361);
                 document.getElementById('live-shot-distance').innerHTML = `${dist}<span class="text-xs text-emerald-300">yd</span>`;
             }
+            redrawTargetPinLines();
         }
 
         // --- SETUP LOGIC (Lie/Club/Shot Type dropdowns) ---
@@ -1069,6 +1242,38 @@
 
         // Collects every logged Full Swing shot for a club across the current round
         // and archived history, each tagged with a human-readable origin label.
+        // --- STATS RANGE FILTER (This Round / 7d / 30d / YTD / All Time) ---
+        function statsFilterCutoff() {
+            const now = new Date();
+            switch (statsFilter) {
+                case '7d': return new Date(now - 7 * 24 * 60 * 60 * 1000);
+                case '30d': return new Date(now - 30 * 24 * 60 * 60 * 1000);
+                case 'ytd': return new Date(now.getFullYear(), 0, 1);
+                default: return null; // 'all' or 'round'
+            }
+        }
+
+        // Returns the flat list of holes (current round + archived rounds within range)
+        // that feed the filter-aware stat cards. "This Round" returns just the current round.
+        function getStatsHoles() {
+            const currentHoles = roundData.some(h => h.played) ? roundData : [];
+            if (statsFilter === 'round') return currentHoles.slice();
+            const cutoff = statsFilterCutoff();
+            let holes = currentHoles.slice();
+            try {
+                const history = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+                history.forEach(r => {
+                    if (!cutoff || new Date(r.savedAt) >= cutoff) holes = holes.concat(r.roundData || []);
+                });
+            } catch(e) { /* ignore malformed history */ }
+            return holes;
+        }
+
+        function setStatsFilter(val) {
+            statsFilter = val;
+            calculateStats();
+        }
+
         function getClubShots(clubName) {
             const entries = [];
             const accumulate = (rd, roundLabel) => {
@@ -1080,11 +1285,16 @@
                     });
                 });
             };
-            accumulate(roundData, 'This Round');
-            try {
-                const history = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
-                history.forEach(r => accumulate(r.roundData, new Date(r.savedAt).toLocaleDateString()));
-            } catch(e) { /* ignore malformed history */ }
+            if (roundData.some(h => h.played)) accumulate(roundData, 'This Round');
+            if (statsFilter !== 'round') {
+                const cutoff = statsFilterCutoff();
+                try {
+                    const history = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+                    history.forEach(r => {
+                        if (!cutoff || new Date(r.savedAt) >= cutoff) accumulate(r.roundData, new Date(r.savedAt).toLocaleDateString());
+                    });
+                } catch(e) { /* ignore malformed history */ }
+            }
             return entries;
         }
 
@@ -1594,11 +1804,11 @@
             });
         }
 
-        // Sums strokes-gained by category across all played holes in this round.
-        function aggregateSG() {
+        // Sums strokes-gained by category across all played holes in `holes`.
+        function aggregateSG(holes) {
             const totals = { ott: 0, app: 0, arg: 0, putt: 0 };
             let holesWithData = 0;
-            roundData.forEach(hole => {
+            holes.forEach(hole => {
                 if (!hole.played) return;
                 const res = computeHoleSG(hole);
                 if (!res) return;
@@ -1610,7 +1820,7 @@
         }
 
         function renderStrokesGained() {
-            const agg = aggregateSG();
+            const agg = aggregateSG(getStatsHoles());
             const fmt = (v) => (v > 0 ? '+' : '') + v.toFixed(1);
             const colorClass = (v) => v > 0.05 ? 'text-emerald-400' : v < -0.05 ? 'text-red-400' : 'text-white';
             const setBox = (id, val) => {
@@ -1626,6 +1836,93 @@
             document.getElementById('sg-note').classList.toggle('hidden', agg.holesWithData > 0);
         }
 
+        // --- RADAR / SPIDER CHART ---
+        // Generic SVG radar chart: `axes` are labels, `values` are 0..maxValue, drawn as
+        // a filled polygon over a grid of concentric rings.
+        function renderRadarChart(axes, values, maxValue, color) {
+            color = color || '#10b981';
+            const size = 220, center = size / 2, radius = 75;
+            const n = axes.length;
+            const angleStep = (Math.PI * 2) / n;
+            const startAngle = -Math.PI / 2;
+            const pt = (i, val) => {
+                const angle = startAngle + i * angleStep;
+                const r = (Math.max(0, Math.min(val, maxValue)) / maxValue) * radius;
+                return [center + r * Math.cos(angle), center + r * Math.sin(angle)];
+            };
+            let grid = '';
+            for (let ring = 1; ring <= 4; ring++) {
+                const r = radius * ring / 4;
+                const pts = axes.map((_, i) => {
+                    const angle = startAngle + i * angleStep;
+                    return `${(center + r * Math.cos(angle)).toFixed(1)},${(center + r * Math.sin(angle)).toFixed(1)}`;
+                }).join(' ');
+                grid += `<polygon points="${pts}" fill="none" stroke="#334155" stroke-width="1"/>`;
+            }
+            let axesHtml = '';
+            axes.forEach((label, i) => {
+                const angle = startAngle + i * angleStep;
+                const x2 = center + radius * Math.cos(angle), y2 = center + radius * Math.sin(angle);
+                axesHtml += `<line x1="${center}" y1="${center}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#334155" stroke-width="1"/>`;
+                const lx = center + (radius + 26) * Math.cos(angle), ly = center + (radius + 26) * Math.sin(angle);
+                let anchor = 'middle';
+                if (Math.cos(angle) > 0.3) anchor = 'start';
+                else if (Math.cos(angle) < -0.3) anchor = 'end';
+                axesHtml += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" fill="#94a3b8" font-size="10" font-weight="bold" text-anchor="${anchor}" dominant-baseline="middle">${label}</text>`;
+            });
+            const valuePts = values.map((v, i) => pt(i, v).join(',')).join(' ');
+            const valueShape = `<polygon points="${valuePts}" fill="${color}33" stroke="${color}" stroke-width="2"/>`;
+            const dots = values.map((v, i) => { const [x, y] = pt(i, v); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${color}"/>`; }).join('');
+            return `<svg viewBox="0 0 ${size} ${size}" class="w-full" style="max-height:200px">${grid}${axesHtml}${valueShape}${dots}</svg>`;
+        }
+
+        // --- REGULATION STATS (GIR / FIR / Scrambling) ---
+        // GIR: ball on the green in (par - 2) strokes or fewer. Derived from score - putts,
+        // so it works even without per-shot GPS data.
+        function holeGIR(hole) {
+            if (!hole.played) return null;
+            return (hole.score - hole.putts) <= (hole.par - 2);
+        }
+
+        // FIR: tee shot comes to rest in the fairway. N/A for par 3s. Requires the second
+        // shot to have been logged, since shots[1].lie is the lie the tee shot landed in.
+        function holeFIR(hole) {
+            if (!hole.played || hole.par === 3) return null;
+            if (!hole.shots || hole.shots.length < 2) return null;
+            return hole.shots[1].lie === 'Fairway';
+        }
+
+        function aggregateRegulation(holes) {
+            let girHit = 0, girTotal = 0, firHit = 0, firTotal = 0, scrambleHit = 0, scrambleTotal = 0;
+            holes.forEach(h => {
+                const gir = holeGIR(h);
+                if (gir !== null) {
+                    girTotal++;
+                    if (gir) girHit++;
+                    else { scrambleTotal++; if (h.score <= h.par) scrambleHit++; }
+                }
+                const fir = holeFIR(h);
+                if (fir !== null) { firTotal++; if (fir) firHit++; }
+            });
+            return { girHit, girTotal, firHit, firTotal, scrambleHit, scrambleTotal };
+        }
+
+        function renderRegulationStats() {
+            const agg = aggregateRegulation(getStatsHoles());
+            const pct = (hit, total) => total > 0 ? `${Math.round(hit / total * 100)}%` : '--';
+            document.getElementById('stat-gir').textContent = pct(agg.girHit, agg.girTotal);
+            document.getElementById('stat-gir-frac').textContent = `${agg.girHit}/${agg.girTotal}`;
+            document.getElementById('stat-fir').textContent = pct(agg.firHit, agg.firTotal);
+            document.getElementById('stat-fir-frac').textContent = `${agg.firHit}/${agg.firTotal}`;
+            document.getElementById('stat-scramble').textContent = pct(agg.scrambleHit, agg.scrambleTotal);
+            document.getElementById('stat-scramble-frac').textContent = `${agg.scrambleHit}/${agg.scrambleTotal}`;
+
+            const girPct = agg.girTotal > 0 ? agg.girHit / agg.girTotal * 100 : 0;
+            const firPct = agg.firTotal > 0 ? agg.firHit / agg.firTotal * 100 : 0;
+            const scramblePct = agg.scrambleTotal > 0 ? agg.scrambleHit / agg.scrambleTotal * 100 : 0;
+            document.getElementById('reg-radar').innerHTML = renderRadarChart(['GIR', 'Fairways', 'Scrambling'], [girPct, firPct, scramblePct], 100, '#22d3ee');
+        }
+
         // --- STATS ENGINE ---
         function calculateStats() {
             let totalScore = 0, totalPar = 0, totalPutts = 0, holesPlayed = 0;
@@ -1634,7 +1931,7 @@
             const clubDistances = {};
             const mishitCounts = {};
 
-            roundData.forEach(hole => {
+            getStatsHoles().forEach(hole => {
                 if (hole.played) {
                     holesPlayed++;
                     totalScore += hole.score; totalPar += hole.par; totalPutts += hole.putts;
@@ -1664,6 +1961,11 @@
             document.getElementById('stat-strike').textContent = (sumQ2 / holesPlayed).toFixed(1);
             document.getElementById('stat-short').textContent = (sumQ3 / holesPlayed).toFixed(1);
             document.getElementById('stat-comp').textContent = (sumQ4 / holesPlayed).toFixed(1);
+            document.getElementById('mental-radar').innerHTML = renderRadarChart(
+                ['Strategy', 'Ball Striking', 'Short Game', 'Composure'],
+                [sumQ1 / holesPlayed, sumQ2 / holesPlayed, sumQ3 / holesPlayed, sumQ4 / holesPlayed],
+                5
+            );
 
             // Performance
             const relativeToPar = totalScore - totalPar;
@@ -1702,6 +2004,7 @@
             renderScoringDistribution();
             renderRoundHistory();
             renderStrokesGained();
+            renderRegulationStats();
             renderGappingChart();
             updateProfileFromStats();
         }
@@ -1738,6 +2041,8 @@
                     ${row('Par', h => h.par)}
                     ${row('Score', h => h.played ? h.score : '-', h => h.played ? scoreColorClass(h) : 'text-slate-600')}
                     ${row('Putts', h => h.played ? h.putts : '-')}
+                    ${row('GIR', h => { const g = holeGIR(h); return g === null ? '-' : (g ? '●' : '·'); }, h => { const g = holeGIR(h); return g ? 'text-emerald-400' : 'text-slate-600'; })}
+                    ${row('FIR', h => { const f = holeFIR(h); return f === null ? '-' : (f ? '●' : '·'); }, h => { const f = holeFIR(h); return f ? 'text-cyan-400' : 'text-slate-600'; })}
                     <div class="text-right text-[9px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-700">
                         ${anyPlayed ? `Total <span class="text-white font-bold">${totalScore}</span> <span class="text-slate-500">(Par ${totalPar})</span>` : '<span class="italic text-slate-500">No holes played yet</span>'}
                     </div>
@@ -1750,22 +2055,15 @@
         // --- SCORING DISTRIBUTION (current round + archived history) ---
         function renderScoringDistribution() {
             const dist = { eagle: 0, birdie: 0, par: 0, bogey: 0, double: 0 };
-            const accumulate = (rd) => {
-                (rd || []).forEach(hole => {
-                    if (!hole.played) return;
-                    const diff = hole.score - hole.par;
-                    if (diff <= -2) dist.eagle++;
-                    else if (diff === -1) dist.birdie++;
-                    else if (diff === 0) dist.par++;
-                    else if (diff === 1) dist.bogey++;
-                    else dist.double++;
-                });
-            };
-            accumulate(roundData);
-            try {
-                const history = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
-                history.forEach(r => accumulate(r.roundData));
-            } catch(e) { /* ignore malformed history */ }
+            getStatsHoles().forEach(hole => {
+                if (!hole.played) return;
+                const diff = hole.score - hole.par;
+                if (diff <= -2) dist.eagle++;
+                else if (diff === -1) dist.birdie++;
+                else if (diff === 0) dist.par++;
+                else if (diff === 1) dist.bogey++;
+                else dist.double++;
+            });
 
             document.getElementById('stat-eagle').textContent = dist.eagle;
             document.getElementById('stat-birdie').textContent = dist.birdie;
@@ -1950,6 +2248,8 @@
             if (currentHoleIndex > 17) currentHoleIndex = 17;
             if(targetMarker) { map.removeLayer(targetMarker); targetMarker = null; }
             if(pinMarker) { map.removeLayer(pinMarker); pinMarker = null; }
+            if(targetLine) { map.removeLayer(targetLine); targetLine = null; }
+            if(pinLine) { map.removeLayer(pinLine); pinLine = null; }
             saveRound();
             resetToSetupState(); loadHoleDataIntoUI();
             loadTargetMarker();
