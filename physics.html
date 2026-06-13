@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional GPS Trajectory Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        canvas { background-color: #0f172a; border: 1px solid #334155; border-radius: 0.5rem; width: 100%; }
+        #canvas-map { background-color: #14532d; height: 400px; } 
+        #canvas-side, #canvas-behind { height: 200px; }
+        input[type="range"] { accent-color: #10b981; width: 100%; }
+        input.wind-slider { accent-color: #0ea5e9; }
+        input.slope-slider { accent-color: #f59e0b; }
+        .scrubber { accent-color: #f59e0b !important; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans p-4 md:p-8 min-h-screen">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <header class="border-b border-slate-700 pb-4">
+            <h1 class="text-3xl font-bold text-white flex items-center gap-3">
+                <span class="text-emerald-400">⛳</span> Professional Trajectory Engine
+            </h1>
+            <p class="text-sm text-slate-400 mt-1">Independent flight and ground ballistic simulation. Calculate spin axis, deviation points, and stopping power based strictly on GPS and environment.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-4 space-y-6">
+                
+                <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xs font-bold text-emerald-400 uppercase tracking-widest">🌍 Actual GPS Coordinates</h2>
+                        <span id="stat-target-dist" class="text-xs font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded">-- yds to Target</span>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-slate-500">Tee Box (Origin)</label>
+                            <input type="text" id="gps-tee" value="45.150311, -93.884976" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-300 font-mono" onchange="calculateGPS()">
+                        </div>
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-red-400">Target (Landing Zone &mdash; Red Dot, 0&deg;)</label>
+                            <input type="text" id="gps-target" value="45.149134, -93.882763" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-300 font-mono" onchange="calculateGPS()">
+                        </div>
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-sky-500">Intended Start Line (Aim)</label>
+                            <input type="text" id="gps-aim" value="" placeholder="optional — defaults to target line" class="w-full bg-slate-900 border border-sky-600/40 rounded p-2 text-xs text-sky-100 font-mono" onchange="calculateGPS()">
+                        </div>
+                        <div class="pt-2 border-t border-slate-700">
+                            <label class="text-[10px] uppercase font-bold text-emerald-500">Ball Pitch Mark (Landed)</label>
+                            <input type="text" id="gps-landed" value="45.149182, -93.883064" class="w-full bg-slate-900 border border-emerald-600/50 rounded p-2 text-xs text-emerald-100 font-mono" onchange="calculateGPS()">
+                        </div>
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-amber-500">Final Resting (Stopped)</label>
+                            <input type="text" id="gps-stopped" value="45.149065, -93.883093" class="w-full bg-slate-900 border border-amber-600 rounded p-2 text-xs text-amber-100 font-mono shadow-[0_0_10px_rgba(245,158,11,0.2)]" onchange="calculateGPS()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-xl space-y-4">
+                    <h2 class="text-xs font-bold text-sky-400 uppercase tracking-widest mb-2 border-b border-slate-700 pb-2">☁️ Flight Mechanics</h2>
+                    
+                    <div>
+                        <div class="flex justify-between text-sm mb-1"><label class="font-semibold text-slate-300">Apex (Max Height)</label><span id="val-height" class="text-sky-400 font-bold">90 ft</span></div>
+                        <input type="range" id="inp-height" min="10" max="150" value="90">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-1"><label class="font-semibold text-slate-300">Actual Start Line <span class="text-[9px] text-slate-500 font-normal">(0&deg; = on target line)</span></label><span id="val-start" class="text-sky-400 font-bold">5&deg; (RIGHT)</span></div>
+                        <input type="range" id="inp-start" min="-25" max="25" step="0.5" value="5">
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-5 rounded-xl border border-cyan-700/50 shadow-[0_0_15px_rgba(14,165,233,0.1)] space-y-4">
+                    <h2 class="text-xs font-bold text-cyan-500 uppercase tracking-widest mb-2 border-b border-slate-700 pb-2">🌬️ External Environment</h2>
+                    
+                    <div>
+                        <div class="flex justify-between text-sm mb-1"><label class="font-semibold text-slate-300">Wind Speed (mph)</label><span id="val-wind-speed" class="text-cyan-500 font-bold">0 mph</span></div>
+                        <input type="range" id="inp-wind-speed" class="wind-slider" min="0" max="40" value="0">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-1"><label class="font-semibold text-slate-300">Wind Dir (&deg; from Target)</label><span id="val-wind-bearing" class="text-cyan-500 font-bold">0&deg;</span></div>
+                        <input type="range" id="inp-wind-bearing" class="wind-slider" min="0" max="360" value="0">
+                    </div>
+                    <div class="pt-2 border-t border-slate-700/50">
+                        <div class="flex justify-between text-sm mb-1"><label class="font-semibold text-slate-300">Ground Slope (&deg; at Landing)</label><span id="val-slope" class="text-amber-500 font-bold">0&deg;</span></div>
+                        <input type="range" id="inp-slope" class="slope-slider" min="-15" max="15" value="0">
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="lg:col-span-8 space-y-4">
+                
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div class="bg-slate-800 border border-slate-700 p-3 rounded-lg text-center">
+                        <span class="text-[10px] uppercase text-emerald-400 font-bold block">Carry Dist / Offline</span>
+                        <div class="text-lg font-black text-white" id="stat-carry">--</div>
+                    </div>
+                    <div class="bg-slate-800 border border-amber-600/50 p-3 rounded-lg text-center shadow-[0_0_15px_rgba(245,158,11,0.15)]">
+                        <span class="text-[10px] uppercase text-amber-500 font-bold block">Total Dist / Offline</span>
+                        <div class="text-lg font-black text-amber-400" id="stat-total">--</div>
+                    </div>
+                    <div class="bg-slate-800 border border-slate-700 p-3 rounded-lg text-center">
+                        <span class="text-[10px] uppercase text-sky-400 font-bold block"> Hang Time (s)</span>
+                        <div class="text-lg font-black text-sky-300" id="stat-airtime">--</div>
+                    </div>
+                    <div class="bg-slate-800 border border-slate-700 p-3 rounded-lg text-center">
+                        <span class="text-[10px] uppercase text-fuchsia-400 font-bold block">Est. Ball Speed</span>
+                        <div class="text-lg font-black text-fuchsia-300" id="stat-speed">--</div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-700">
+                    <h2 class="text-xs font-bold text-fuchsia-400 uppercase tracking-widest mb-3">Reverse-Engineered Ballistics</h2>
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div class="bg-slate-800 p-2 rounded text-center">
+                            <span class="text-[9px] uppercase text-slate-400 font-bold block">Max Offline Deviation (Apex)</span>
+                            <div class="text-sm font-bold text-slate-200" id="stat-max-offline">--</div>
+                        </div>
+                        <div class="bg-slate-800 p-2 rounded text-center">
+                            <span class="text-[9px] uppercase text-slate-400 font-bold block">Launch / Descent Angle</span>
+                            <div class="text-sm font-bold text-slate-200" id="stat-launch-descent">-- / --</div>
+                        </div>
+                        <div class="bg-slate-800 p-2 rounded text-center">
+                            <span class="text-[9px] uppercase text-slate-400 font-bold block">Stopping Power vs Slope</span>
+                            <div class="text-sm font-bold text-slate-200" id="stat-stopping">--</div>
+                        </div>
+                        <div class="bg-slate-800 p-2 rounded text-center">
+                            <span class="text-[9px] uppercase text-slate-400 font-bold block">Calculated SpinAxis (Deg)</span>
+                            <div class="text-sm font-bold text-slate-200" id="stat-spin-axis">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 border border-slate-700 p-3 rounded-lg flex items-center gap-4 shadow-xl">
+                    <button id="btn-play" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2 px-6 rounded transition active:scale-95 flex items-center gap-2 w-32 justify-center">
+                        ▶ Play 
+                    </button>
+                    <div class="flex-1 flex flex-col relative scrubber-container">
+                        <input type="range" id="inp-scrubber" class="scrubber w-full" min="0" max="100" value="100">
+                    </div>
+                </div>
+
+                <div class="relative rounded-xl overflow-hidden shadow-2xl border border-slate-700">
+                    <h3 class="absolute top-3 left-3 text-[10px] font-bold uppercase text-white bg-black/60 px-2 py-1 rounded backdrop-blur">Top-Down Map View</h3>
+                    <canvas id="canvas-map"></canvas>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="relative">
+                        <h3 class="absolute top-2 left-2 text-[10px] font-bold uppercase text-slate-400 bg-slate-900/80 px-2 py-1 rounded">Side View (Apex & Descent Point)</h3>
+                        <canvas id="canvas-side"></canvas>
+                    </div>
+                    <div class="relative">
+                        <h3 class="absolute top-2 left-2 text-[10px] font-bold uppercase text-slate-400 bg-slate-900/80 px-2 py-1 rounded">Golfer View (Curvature & Roll Deviation)</h3>
+                        <canvas id="canvas-behind"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Global Trajectory Data ---
+        let GLOBAL_CARRYZ = 250;
+        let GLOBAL_CARRYX = -10;
+        let GLOBAL_ROLLZ = 15;
+        let GLOBAL_ROLLX = -5;
+        let TargetTotalDistance = 0;
+        let GLOBAL_TARGET_ANGLE = 0; // Stored for compass rendering
+        let GLOBAL_AIM_DEG = null;   // Intended start line angle vs target line (null = none given)
+        let GLOBAL_TEE = null;       // Tee lat/lon, anchors the satellite imagery
+        const TILE_CACHE = {};       // z/y/x -> {img, loaded} satellite tiles
+        let lastDrawnPercent = 100;
+
+        let trajectoryData = [];
+        let isPlaying = false;
+        let playInterval;
+        let animationIntervalMs = 30; 
+
+        // --- 1. NEW LOCAL CARTESIAN GPS LOGIC ---
+        // Returns null (instead of NaN-filled coords) for malformed "lat, lon" input.
+        function parseCoords(str) {
+            const parts = str.split(',');
+            if (parts.length !== 2) return null;
+            const lat = parseFloat(parts[0]);
+            const lon = parseFloat(parts[1]);
+            if (isNaN(lat) || isNaN(lon)) return null;
+            return { lat, lon };
+        }
+
+        function setGpsFieldError(id, hasError) {
+            document.getElementById(id).classList.toggle('!border-red-500', hasError);
+        }
+
+        function showGpsError() {
+            document.getElementById('stat-target-dist').innerText = 'Invalid GPS';
+            ['stat-carry', 'stat-total', 'stat-airtime', 'stat-speed', 'stat-max-offline', 'stat-spin-axis'].forEach(id => {
+                document.getElementById(id).innerText = '--';
+            });
+            document.getElementById('stat-launch-descent').innerHTML = '-- / --';
+            document.getElementById('stat-stopping').innerText = '--';
+        }
+
+        function calculateGPS() {
+            try {
+                const requiredFields = { 'gps-tee': null, 'gps-target': null, 'gps-landed': null, 'gps-stopped': null };
+                let hasError = false;
+                for (const id in requiredFields) {
+                    const parsed = parseCoords(document.getElementById(id).value);
+                    requiredFields[id] = parsed;
+                    setGpsFieldError(id, parsed === null);
+                    if (parsed === null) hasError = true;
+                }
+                if (hasError) { showGpsError(); return; }
+
+                const tee = requiredFields['gps-tee'];
+                GLOBAL_TEE = tee;
+                const target = requiredFields['gps-target'];
+                const landed = requiredFields['gps-landed'];
+                const stopped = requiredFields['gps-stopped'];
+
+                // Flat Earth Euclidean Conversion (perfect for local golf distances)
+                // 1 degree latitude = ~121,522 yards. 1 degree longitude shrinks based on latitude.
+                const latYards = 121522;
+                const lonYards = Math.cos(tee.lat * (Math.PI / 180)) * 121522;
+
+                // Convert absolute GPS to Local X/Y relative to Tee Box (0,0)
+                function toLocalXY(coord) {
+                    return {
+                        x: (coord.lon - tee.lon) * lonYards, // X = East/West (Positive = East)
+                        y: (coord.lat - tee.lat) * latYards  // Y = North/South (Positive = North)
+                    };
+                }
+
+                const tTarget = toLocalXY(target);
+                const tLanded = toLocalXY(landed);
+                const tStopped = toLocalXY(stopped);
+
+                TargetTotalDistance = Math.sqrt(tTarget.x**2 + tTarget.y**2);
+                document.getElementById('stat-target-dist').innerText = Math.round(TargetTotalDistance) + ' yds';
+
+                // Find angle of the Target relative to East
+                const targetAngle = Math.atan2(tTarget.y, tTarget.x);
+                GLOBAL_TARGET_ANGLE = targetAngle; // Save for the UI compass
+
+                // Mathematical Matrix Rotation: Align the Target Line exactly with the Z-Axis (Forward)
+                const angleDiff = (Math.PI / 2) - targetAngle;
+                function projectToTargetLine(pt) {
+                    return {
+                        x: pt.x * Math.cos(angleDiff) - pt.y * Math.sin(angleDiff), // New X is strictly Left/Right Offline
+                        z: pt.x * Math.sin(angleDiff) + pt.y * Math.cos(angleDiff)  // New Z is strictly Forward Distance
+                    };
+                }
+
+                const projLanded = projectToTargetLine(tLanded);
+                const projStopped = projectToTargetLine(tStopped);
+
+                // Intended start line (aim point): seeds the Actual Start Line slider.
+                // A slicer aims left of the target dot; the ball is assumed to start on that line.
+                GLOBAL_AIM_DEG = null;
+                const aimStr = document.getElementById('gps-aim').value.trim();
+                if (aimStr) {
+                    const aim = parseCoords(aimStr);
+                    setGpsFieldError('gps-aim', aim === null);
+                    if (aim) {
+                        const projAim = projectToTargetLine(toLocalXY(aim));
+                        const aimDeg = Math.atan2(projAim.x, projAim.z) * (180 / Math.PI);
+                        GLOBAL_AIM_DEG = Math.max(-25, Math.min(25, Math.round(aimDeg * 2) / 2));
+                        document.getElementById('inp-start').value = GLOBAL_AIM_DEG;
+                        document.getElementById('val-start').innerHTML = GLOBAL_AIM_DEG > 0 ? `${GLOBAL_AIM_DEG}&deg; (RIGHT)` : (GLOBAL_AIM_DEG < 0 ? `${Math.abs(GLOBAL_AIM_DEG)}&deg; (LEFT)` : '0&deg;');
+                    }
+                } else {
+                    setGpsFieldError('gps-aim', false);
+                }
+
+                GLOBAL_CARRYX = projLanded.x;
+                GLOBAL_CARRYZ = projLanded.z;
+                
+                GLOBAL_ROLLX = projStopped.x - projLanded.x;
+                GLOBAL_ROLLZ = projStopped.z - projLanded.z;
+
+                generateTrajectory();
+            } catch(e) { console.error("Invalid GPS Format", e); }
+        }
+
+        // --- 2. INPUT LISTENERS ---
+        ['height', 'start', 'wind-speed', 'wind-bearing', 'slope'].forEach(id => {
+            const el = document.getElementById(`inp-${id}`);
+            
+            el.addEventListener('input', (e) => {
+                let displayVal = e.target.value;
+                let unit = '';
+                if(id === 'height') unit = ' ft';
+                if(id === 'wind-speed') unit = ' mph';
+                if(id === 'wind-bearing' || id === 'slope') unit = '&deg;';
+                
+                if(id === 'start') {
+                    displayVal = displayVal > 0 ? `${displayVal} (RIGHT)` : (displayVal < 0 ? `${Math.abs(displayVal)} (LEFT)` : `0`);
+                    unit = '&deg;';
+                }
+                document.getElementById(`val-${id}`).innerHTML = `${displayVal}${unit}`;
+                generateTrajectory(); 
+            });
+
+            el.addEventListener('change', () => {
+                startPlayback();
+            });
+        });
+
+        document.getElementById('inp-scrubber').addEventListener('input', (e) => {
+            if(isPlaying) stopPlayback();
+            drawFrame(parseInt(e.target.value));
+        });
+
+        document.getElementById('btn-play').addEventListener('click', () => {
+            if(isPlaying) stopPlayback(); else startPlayback();
+        });
+
+        // --- 3. TRAJECTORY & ANALYTICS MATH ---
+        function generateTrajectory() {
+            const H = parseFloat(document.getElementById('inp-height').value); 
+            const StartDeg = parseFloat(document.getElementById('inp-start').value); 
+            const WindSpeed = parseFloat(document.getElementById('inp-wind-speed').value);
+            const WindBearingRelative = parseFloat(document.getElementById('inp-wind-bearing').value);
+            const GroundSlope = parseFloat(document.getElementById('inp-slope').value);
+
+            const windRad = WindBearingRelative * (Math.PI / 180);
+            const headwindMph = WindSpeed * Math.cos(windRad); // positive = into the wind (blowing from target toward tee)
+
+            const airTimeSeconds = 0.65 * Math.sqrt(H) * (1 + headwindMph * 0.004);
+            const rollTimeSeconds = Math.abs(GLOBAL_ROLLZ) > 0 ? 1.5 + (Math.abs(GLOBAL_ROLLZ) * 0.05) : 0;
+            const totalTimeSeconds = airTimeSeconds + rollTimeSeconds;
+
+            animationIntervalMs = ((totalTimeSeconds * 1000) / 100) * 0.8;
+            // Headwind means more ball speed was required to reach the same GPS carry point
+            const ballSpeedMph = (GLOBAL_CARRYZ / 1.75) + (H / 4) + (headwindMph * 0.4);
+
+            trajectoryData = [];
+            
+            const stepsCarry = Math.floor((airTimeSeconds / totalTimeSeconds) * 100) || 80;
+            const stepsRoll = 100 - stepsCarry;
+            const startRad = StartDeg * (Math.PI / 180);
+
+            const endXWithoutSpin = GLOBAL_CARRYZ * Math.tan(startRad);
+            const missingX = GLOBAL_CARRYX - endXWithoutSpin;
+
+            const maxWindDriftAtLanding = (WindSpeed * airTimeSeconds * 0.3) * Math.sin(windRad);
+            const maxAeroCurveAtLanding = missingX - maxWindDriftAtLanding;
+
+            // AIR FLIGHT
+            const dragDecelExponent = 1.3; 
+            for(let i = 0; i <= stepsCarry; i++) {
+                const t = i / stepsCarry; 
+                
+                const zNorm = (1 - Math.exp(-dragDecelExponent * t)) / (1 - Math.exp(-dragDecelExponent));
+                const z = GLOBAL_CARRYZ * zNorm; 
+                const y = 4 * H * t * (1 - t); 
+                
+                const startLinePath = z * Math.tan(startRad);
+                const aeroCurveMomentum = maxAeroCurveAtLanding * Math.pow(t, 2.5);
+                const windDrift = maxWindDriftAtLanding * Math.pow(t, 2.0); 
+                const x = startLinePath + aeroCurveMomentum + windDrift;
+                
+                trajectoryData.push({ x, y, z, phase: 'air' });
+            }
+
+            // ANALYTICS
+            let launchAngle = 0;
+            let descentAngle = 0;
+            let maxDeviationPoint = {z: 0, x: 0};
+            let stoppingScore = "Normal";
+
+            if (trajectoryData.length > 2) {
+                const yDistLaunch = (trajectoryData[1].y - trajectoryData[0].y) / 3; 
+                const zDistLaunch = trajectoryData[1].z - trajectoryData[0].z;
+                launchAngle = Math.atan2(yDistLaunch, zDistLaunch) * (180 / Math.PI);
+
+                const yDistDesc = (trajectoryData[stepsCarry-1].y - trajectoryData[stepsCarry].y) / 3; 
+                const zDistDesc = trajectoryData[stepsCarry].z - trajectoryData[stepsCarry-1].z;
+                descentAngle = Math.atan2(yDistDesc, zDistDesc) * (180 / Math.PI);
+
+                const effectiveDescent = descentAngle - GroundSlope;
+                if(effectiveDescent > 50) stoppingScore = "Elite (SW)";
+                else if(effectiveDescent > 45) stoppingScore = "Tour Avg (7I)";
+                else if(effectiveDescent < 35) stoppingScore = "Shallow";
+
+                let maxIdx = 0, maxDev = 0;
+                for(let i = 1; i <= stepsCarry; i++) {
+                    const dev = Math.abs(trajectoryData[i].x - (trajectoryData[i].z * Math.tan(startRad)));
+                    if(dev > maxDev) { maxDev = dev; maxIdx = i; }
+                }
+                maxDeviationPoint = trajectoryData[maxIdx];
+            }
+
+            // GROUND ROLL
+            if(stepsRoll > 0) {
+                for(let i = 1; i <= stepsRoll; i++) {
+                    const r = i / stepsRoll;
+                    const dampening = 1 - Math.pow(1 - r, 2); 
+                    
+                    const z = GLOBAL_CARRYZ + (GLOBAL_ROLLZ * dampening);
+                    const x = GLOBAL_CARRYX + (GLOBAL_ROLLX * dampening);
+                    
+                    const bounceHeight = H * 0.1; 
+                    const y = Math.abs(Math.sin(r * Math.PI * 4)) * bounceHeight * Math.pow(1 - r, 2); 
+                    
+                    trajectoryData.push({ x, y, z, phase: 'roll' });
+                }
+            }
+
+            // UI UPDATES
+            const cDir = GLOBAL_CARRYX > 0 ? "RIGHT" : (GLOBAL_CARRYX < 0 ? "LEFT" : "CENTER");
+            document.getElementById('stat-carry').innerText = `${Math.round(GLOBAL_CARRYZ)}y / ${Math.abs(Math.round(GLOBAL_CARRYX))}y ${cDir}`;
+            
+            const totalZ = GLOBAL_CARRYZ + GLOBAL_ROLLZ;
+            const totalX = GLOBAL_CARRYX + GLOBAL_ROLLX;
+            const tDir = totalX > 0 ? "RIGHT" : (totalX < 0 ? "LEFT" : "CENTER");
+            document.getElementById('stat-total').innerText = `${Math.round(totalZ)}y / ${Math.abs(Math.round(totalX))}y ${tDir}`;
+
+            const windNote = Math.abs(headwindMph) > 2 ? (headwindMph > 0 ? ' ⬆wind' : ' ⬇wind') : '';
+            document.getElementById('stat-speed').innerText = Math.round(ballSpeedMph) + ' mph' + windNote;
+            document.getElementById('stat-airtime').innerText = airTimeSeconds.toFixed(1);
+
+            const mDir = maxDeviationPoint.x > 0 ? "R" : (maxDeviationPoint.x < 0 ? "L" : "");
+            document.getElementById('stat-max-offline').innerHTML = `${Math.abs(Math.round(maxDeviationPoint.x))}y ${mDir} @ ${Math.round(maxDeviationPoint.z)}y`;
+            document.getElementById('stat-launch-descent').innerHTML = `${launchAngle.toFixed(1)}&deg; / ${descentAngle.toFixed(1)}&deg;`;
+            document.getElementById('stat-stopping').innerHTML = stoppingScore;
+            
+            // Spin axis from the aero-curve component only: wind drift and roll are not spin-induced
+            const aeroCurveDeg = Math.atan2(maxAeroCurveAtLanding, GLOBAL_CARRYZ) * (180 / Math.PI);
+            const calculatedSpinAxisDeg = aeroCurveDeg * 2;
+            document.getElementById('stat-spin-axis').innerHTML = calculatedSpinAxisDeg.toFixed(1) + '&deg;';
+
+            document.getElementById('inp-scrubber').value = 100;
+            drawFrame(100);
+        }
+
+        // --- 4. RENDERING ENGINE ---
+        function drawFrame(percent) {
+            lastDrawnPercent = percent;
+            if(trajectoryData.length === 0) return;
+            const pointsToDraw = Math.floor((percent / 100) * (trajectoryData.length - 1));
+            const activePath = trajectoryData.slice(0, pointsToDraw + 1);
+            if(activePath.length > 0) renderCanvases(activePath, activePath[activePath.length - 1]);
+        }
+
+        function renderCanvases(path, ballPos) {
+            const totalZ = trajectoryData[trajectoryData.length-1].z;
+            const MapZScale = Math.max((TargetTotalDistance || 300) * 1.08, totalZ * 1.1, GLOBAL_CARRYZ * 1.1, 100);
+            
+            const mapC = document.getElementById('canvas-map');
+            const sideC = document.getElementById('canvas-side');
+            const behC = document.getElementById('canvas-behind');
+            
+            [mapC, sideC, behC].forEach(c => { c.width = c.clientWidth * 2; c.height = c.clientHeight * 2; });
+
+            const ctxMap = mapC.getContext('2d');
+            const ctxSide = sideC.getContext('2d');
+            const ctxBeh = behC.getContext('2d');
+
+            // True ground scale (same yards-per-pixel both axes) so satellite imagery isn't stretched
+            const maxAbsXMap = MapZScale * (mapC.width / 2) / mapC.height;
+            const maxAbsXBeh = Math.max(60, Math.abs(GLOBAL_CARRYX) * 1.2, Math.abs(trajectoryData[trajectoryData.length-1].x) * 1.2); 
+            const sideMaxZ = Math.max(totalZ * 1.05, GLOBAL_CARRYZ * 1.05);
+            const visualMaxY = 160; 
+
+            // --- MAP VIEW ---
+            ctxMap.clearRect(0, 0, mapC.width, mapC.height);
+            ctxMap.fillStyle = '#166534';
+            ctxMap.beginPath(); ctxMap.ellipse(mapC.width/2, mapC.height/2, mapC.width*0.3, mapC.height*0.8, 0, 0, Math.PI*2); ctxMap.fill();
+            drawSatellite(ctxMap, mapC, MapZScale, maxAbsXMap);
+
+            // Center Target Line
+            ctxMap.beginPath(); ctxMap.moveTo(mapC.width/2, mapC.height); ctxMap.lineTo(mapC.width/2, 0);
+            ctxMap.strokeStyle = '#ffffff'; ctxMap.lineWidth = 2; ctxMap.setLineDash([10,10]); ctxMap.stroke(); ctxMap.setLineDash([]);
+            
+            // Tee Box
+            ctxMap.fillStyle = '#94a3b8'; ctxMap.fillRect((mapC.width/2)-20, mapC.height-20, 40, 20);
+
+            // COMPASS RENDERING
+            const angleDiff = (Math.PI / 2) - GLOBAL_TARGET_ANGLE;
+            const northX = -Math.sin(angleDiff);
+            const northZ = Math.cos(angleDiff);
+            const canvasNorthAngle = Math.atan2(-northZ, northX); 
+
+            ctxMap.save();
+            ctxMap.translate(45, 50); 
+            ctxMap.beginPath(); ctxMap.arc(0,0, 18, 0, Math.PI*2); 
+            ctxMap.fillStyle = 'rgba(0,0,0,0.6)'; ctxMap.fill(); ctxMap.strokeStyle = '#334155'; ctxMap.stroke();
+            
+            ctxMap.rotate(canvasNorthAngle + Math.PI/2);
+            ctxMap.beginPath(); ctxMap.moveTo(0, -12); ctxMap.lineTo(5, 4); ctxMap.lineTo(-5, 4); ctxMap.closePath();
+            ctxMap.fillStyle = '#ef4444'; ctxMap.fill();
+            ctxMap.beginPath(); ctxMap.moveTo(0, 12); ctxMap.lineTo(5, 4); ctxMap.lineTo(-5, 4); ctxMap.closePath();
+            ctxMap.fillStyle = '#ffffff'; ctxMap.fill();
+            ctxMap.restore();
+            
+            ctxMap.fillStyle = '#ffffff'; ctxMap.font = '11px bold sans-serif'; ctxMap.fillText('N', 41, 23);
+
+            // GPS Target
+            const targetPy = mapC.height - ((TargetTotalDistance / MapZScale) * mapC.height);
+            if(TargetTotalDistance > 0 && targetPy > 0) {
+                ctxMap.beginPath(); ctxMap.arc(mapC.width/2, targetPy, 10, 0, Math.PI*2);
+                ctxMap.fillStyle = '#ef4444'; ctxMap.fill(); ctxMap.strokeStyle = '#ffffff'; ctxMap.stroke();
+            }
+
+            // Intended start line (aim) — dashed sky blue
+            if(GLOBAL_AIM_DEG !== null && GLOBAL_AIM_DEG !== 0) {
+                const aimEndX = MapZScale * Math.tan(GLOBAL_AIM_DEG * (Math.PI / 180));
+                ctxMap.beginPath(); ctxMap.moveTo(mapC.width/2, mapC.height);
+                ctxMap.lineTo((mapC.width/2) + ((aimEndX / maxAbsXMap) * (mapC.width/2)), 0);
+                ctxMap.strokeStyle = '#0ea5e9'; ctxMap.lineWidth = 2; ctxMap.setLineDash([6,6]); ctxMap.stroke(); ctxMap.setLineDash([]);
+            }
+
+            // Actual start line (slider) — solid gray when it differs from the intended line
+            const startDeg = parseFloat(document.getElementById('inp-start').value);
+            if(startDeg !== 0 && startDeg !== GLOBAL_AIM_DEG) {
+                const endX = MapZScale * Math.tan(startDeg * (Math.PI / 180));
+                ctxMap.beginPath(); ctxMap.moveTo(mapC.width/2, mapC.height);
+                ctxMap.lineTo((mapC.width/2) + ((endX / maxAbsXMap) * (mapC.width/2)), 0);
+                ctxMap.strokeStyle = '#94a3b8'; ctxMap.lineWidth = 2; ctxMap.stroke();
+            }
+
+            // Draw Trajectory
+            drawPath(ctxMap, path, mapC, MapZScale, visualMaxY, maxAbsXMap, 'top');
+            
+            // Draw Landing Point mark
+            if(path.length > 0 && (path[path.length-1].phase === 'roll' || path[path.length-1].z >= GLOBAL_CARRYZ)) {
+                const pxMap = (mapC.width/2) + ((GLOBAL_CARRYX / maxAbsXMap) * (mapC.width/2));
+                const pzMap = mapC.height - ((GLOBAL_CARRYZ / MapZScale) * mapC.height);
+                ctxMap.beginPath(); ctxMap.arc(pxMap, pzMap, 4, 0, Math.PI*2);
+                ctxMap.fillStyle = '#10b981'; ctxMap.fill(); ctxMap.strokeStyle = '#000'; ctxMap.stroke();
+            }
+
+            // Draw Ball
+            const bxMap = (mapC.width/2) + ((ballPos.x / maxAbsXMap) * (mapC.width/2));
+            const byMap = mapC.height - ((ballPos.z / MapZScale) * mapC.height);
+            drawBall(ctxMap, bxMap, byMap);
+
+            // --- SIDE VIEW ---
+            ctxSide.clearRect(0, 0, sideC.width, sideC.height); drawGrid(ctxSide, sideC);
+            drawPath(ctxSide, path, sideC, sideMaxZ, visualMaxY, 0, 'side');
+            drawBall(ctxSide, (ballPos.z / sideMaxZ) * sideC.width, sideC.height - ((ballPos.y / visualMaxY) * sideC.height));
+
+            // --- BEHIND VIEW ---
+            ctxBeh.clearRect(0, 0, behC.width, behC.height); drawGrid(ctxBeh, behC);
+            ctxBeh.beginPath(); ctxBeh.moveTo(behC.width/2, behC.height); ctxBeh.lineTo(behC.width/2, 0);
+            ctxBeh.strokeStyle = '#475569'; ctxBeh.lineWidth = 2; ctxBeh.setLineDash([5,5]); ctxBeh.stroke(); ctxBeh.setLineDash([]);
+            drawPath(ctxBeh, path, behC, sideMaxZ, visualMaxY, maxAbsXBeh, 'behind');
+            drawBall(ctxBeh, (behC.width/2) + ((ballPos.x / maxAbsXBeh) * (behC.width/2)), behC.height - ((ballPos.y / visualMaxY) * behC.height));
+        }
+
+        // Renders rotated satellite imagery under the top-down view: tee at bottom center,
+        // target line pointing straight up — the same frame the trajectory is drawn in.
+        function drawSatellite(ctx, canvas, maxZ, maxX) {
+            if (!GLOBAL_TEE) return;
+            const A = (Math.PI / 2) - GLOBAL_TARGET_ANGLE;
+            const latYards = 121522;
+            const lonYards = Math.cos(GLOBAL_TEE.lat * (Math.PI / 180)) * latYards;
+            // Local rotated frame (xOff = offline yards, zFwd = forward yards) -> lat/lon
+            const toLatLon = (xOff, zFwd) => {
+                const east = xOff * Math.cos(A) + zFwd * Math.sin(A);
+                const north = -xOff * Math.sin(A) + zFwd * Math.cos(A);
+                return { lat: GLOBAL_TEE.lat + north / latYards, lon: GLOBAL_TEE.lon + east / lonYards };
+            };
+            const merc = (p, z) => {
+                const s = 256 * Math.pow(2, z);
+                const sinLat = Math.sin(p.lat * Math.PI / 180);
+                return { x: (p.lon + 180) / 360 * s, y: (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * s };
+            };
+
+            const W = canvas.width, H = canvas.height;
+            // Pick a zoom where one tile pixel covers at most ~one canvas pixel
+            const m0z = merc(toLatLon(0, 0), 0), m1z = merc(toLatLon(maxX, 0), 0);
+            const d1z = Math.hypot(m1z.x - m0z.x, m1z.y - m0z.y);
+            if (d1z === 0) return;
+            let z = Math.min(19, Math.max(3, Math.ceil(Math.log2((W / 2) / d1z))));
+
+            // Build the mercator->canvas affine transform for a zoom level, working
+            // RELATIVE to the tee (m0): absolute zoom-19 pixel coords are ~10^8 and can
+            // overflow canvas rasterizer precision. If the rotated view needs too many
+            // tiles (large windows), step the zoom down — each level quarters the count.
+            let g = null;
+            while (z >= 3) {
+                const m0 = merc(toLatLon(0, 0), z), m1 = merc(toLatLon(maxX, 0), z), m2 = merc(toLatLon(0, maxZ), z);
+                const dm1 = { x: m1.x - m0.x, y: m1.y - m0.y }, dm2 = { x: m2.x - m0.x, y: m2.y - m0.y };
+                const dc1 = { x: W / 2, y: 0 }, dc2 = { x: 0, y: -H };
+                const det = dm1.x * dm2.y - dm2.x * dm1.y;
+                if (Math.abs(det) < 1e-9) return;
+                const a = (dc1.x * dm2.y - dc2.x * dm1.y) / det;
+                const c = (-dc1.x * dm2.x + dc2.x * dm1.x) / det;
+                const b = (dc1.y * dm2.y - dc2.y * dm1.y) / det;
+                const d = (-dc1.y * dm2.x + dc2.y * dm1.x) / det;
+                const e = W / 2, f = H;
+
+                // Visible mercator bounds from the canvas corners (inverse transform)
+                const det2 = a * d - b * c;
+                let mnX = Infinity, mnY = Infinity, mxX = -Infinity, mxY = -Infinity;
+                [[0, 0], [W, 0], [0, H], [W, H]].forEach(([px, py]) => {
+                    const qx = px - e, qy = py - f;
+                    const mx = (d * qx - c * qy) / det2 + m0.x, my = (a * qy - b * qx) / det2 + m0.y;
+                    mnX = Math.min(mnX, mx); mxX = Math.max(mxX, mx);
+                    mnY = Math.min(mnY, my); mxY = Math.max(mxY, my);
+                });
+                const t0x = Math.floor(mnX / 256), t1x = Math.floor(mxX / 256);
+                const t0y = Math.floor(mnY / 256), t1y = Math.floor(mxY / 256);
+                if ((t1x - t0x + 1) * (t1y - t0y + 1) <= 120) {
+                    g = { z, m0, a, b, c, d, e, f, t0x, t1x, t0y, t1y };
+                    break;
+                }
+                z--;
+            }
+            if (!g) return;
+
+            ctx.save();
+            ctx.setTransform(g.a, g.b, g.c, g.d, g.e, g.f);
+            for (let tx = g.t0x; tx <= g.t1x; tx++) {
+                for (let ty = g.t0y; ty <= g.t1y; ty++) {
+                    const key = `${g.z}/${ty}/${tx}`;
+                    let tile = TILE_CACHE[key];
+                    if (!tile) {
+                        tile = TILE_CACHE[key] = { img: new Image(), loaded: false };
+                        tile.img.onload = () => { tile.loaded = true; drawFrame(lastDrawnPercent); };
+                        tile.img.onerror = () => { console.warn('Satellite tile failed: ' + key); };
+                        tile.img.src = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${g.z}/${ty}/${tx}`;
+                    }
+                    if (tile.loaded) ctx.drawImage(tile.img, tx * 256 - g.m0.x, ty * 256 - g.m0.y, 256.5, 256.5);
+                }
+            }
+            ctx.restore();
+
+            // Slight dark wash so the trajectory lines keep contrast, plus attribution
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.22)';
+            ctx.fillRect(0, 0, W, H);
+            ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '14px sans-serif';
+            ctx.fillText('© Esri', W - 60, H - 10);
+        }
+
+        function drawPath(ctx, path, canvas, maxZ, maxY, maxX, view) {
+            ctx.beginPath();
+            let lastPhase = 'air';
+            
+            path.forEach((p, i) => {
+                let px, py;
+                if(view === 'side') { px = (p.z / maxZ) * canvas.width; py = canvas.height - ((p.y / maxY) * canvas.height); }
+                if(view === 'top') { px = (canvas.width/2) + ((p.x / maxX) * (canvas.width/2)); py = canvas.height - ((p.z / maxZ) * canvas.height); }
+                if(view === 'behind') { px = (canvas.width/2) + ((p.x / maxX) * (canvas.width/2)); py = canvas.height - ((p.y / maxY) * canvas.height); }
+                
+                if(i === 0) {
+                    ctx.moveTo(px, py); 
+                } else {
+                    ctx.lineTo(px, py);
+                }
+
+                if(p.phase !== lastPhase && i > 0) {
+                    ctx.strokeStyle = '#10b981'; 
+                    ctx.lineWidth = view === 'top' ? 6 : 4; 
+                    ctx.stroke(); 
+                    
+                    ctx.beginPath(); 
+                    ctx.moveTo(px, py); 
+                    lastPhase = p.phase;
+                }
+            });
+            ctx.strokeStyle = lastPhase === 'roll' ? '#f59e0b' : '#10b981'; 
+            ctx.lineWidth = view === 'top' ? 6 : 4; 
+            ctx.stroke();
+        }
+
+        function drawGrid(ctx, canvas) {
+            ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+            for(let i=1; i<4; i++) {
+                ctx.beginPath(); ctx.moveTo(0, (canvas.height/4)*i); ctx.lineTo(canvas.width, (canvas.height/4)*i); ctx.stroke();
+            }
+        }
+        function drawBall(ctx, x, y) {
+            ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.strokeStyle = '#000000'; ctx.lineWidth = 2; ctx.stroke();
+        }
+
+        function startPlayback() {
+            isPlaying = true; document.getElementById('btn-play').innerHTML = '⏹ Stop';
+            let currentScrub = parseInt(document.getElementById('inp-scrubber').value);
+            if(currentScrub >= 100) currentScrub = 0; 
+            
+            playInterval = setInterval(() => {
+                currentScrub += 1;
+                document.getElementById('inp-scrubber').value = currentScrub;
+                drawFrame(currentScrub);
+                if(currentScrub >= 100) stopPlayback();
+            }, animationIntervalMs);
+        }
+
+        function stopPlayback() {
+            isPlaying = false; document.getElementById('btn-play').innerHTML = '▶ Play';
+            clearInterval(playInterval);
+        }
+
+        window.onload = () => {
+            // Prefill GPS inputs from query params (e.g. opened from the GreenDrive shot log)
+            const params = new URLSearchParams(window.location.search);
+            [['tee','gps-tee'],['target','gps-target'],['aim','gps-aim'],['landed','gps-landed'],['stopped','gps-stopped']].forEach(([param, id]) => {
+                const v = params.get(param);
+                if (v) document.getElementById(id).value = v;
+            });
+            const label = params.get('label');
+            if (label) document.querySelector('header p').textContent = 'Analyzing: ' + label;
+            if (params.has('tee')) {
+                // Opened from the shot tracker: assume the ball started on the target line (0°).
+                // The slider sets the actual start line if it differed; deviation beyond it becomes curve.
+                document.getElementById('inp-start').value = 0;
+                document.getElementById('val-start').innerHTML = '0&deg; (ON TARGET LINE)';
+            }
+            calculateGPS();
+            startPlayback();
+        };
+    </script>
+</body>
+</html>

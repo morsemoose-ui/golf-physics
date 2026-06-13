@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>GreenDrive - Wild Marsh GC</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GreenDrive">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@1.18.0"></script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        .leaflet-top, .leaflet-bottom { z-index: 40 !important; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #475569; border-radius: 4px; }
+        .shot-marker {
+            background-color: #10b981; color: white; font-weight: bold; font-size: 10px;
+            border: 2px solid white; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        /* Custom Segmented Controls */
+        .segmented-control input[type="radio"] { display: none; }
+        .segmented-control label {
+            flex: 1; text-align: center; padding: 10px 4px; font-size: 11px; font-weight: bold;
+            color: #94a3b8; background: #1e293b; border: 1px solid #334155; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .segmented-control label:first-of-type { border-radius: 8px 0 0 8px; }
+        .segmented-control label:last-of-type { border-radius: 0 8px 8px 0; }
+        .segmented-control input[type="radio"]:checked + label {
+            background: #10b981; color: #020617; border-color: #10b981; z-index: 10;
+        }
+        
+        .segmented-control.blue-theme input[type="radio"]:checked + label {
+            background: #06b6d4; color: #020617; border-color: #06b6d4;
+        }
+        
+        .segmented-control.red-theme input[type="radio"]:checked + label {
+            background: #ef4444; color: #020617; border-color: #ef4444;
+        }
+
+        /* Dark native selects for shot setup */
+        .select-dark {
+            background-color: #0f172a; color: #e2e8f0; border: 1px solid #334155;
+            border-radius: 8px; font-size: 11px; font-weight: 700; text-align: center;
+            text-align-last: center; padding: 9px 4px; appearance: none;
+            -webkit-appearance: none; transition: border-color 0.2s;
+        }
+        .select-dark:focus { outline: none; border-color: #10b981; }
+        .select-dark.select-active { border-color: #10b981; color: #34d399; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen pb-20">
+
+    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 px-4 py-3 shadow-lg">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <i data-lucide="navigation" class="text-emerald-400 animate-pulse w-5 h-5"></i>
+                <div class="leading-tight">
+                    <h1 class="text-base font-bold tracking-tight text-white">GreenDrive</h1>
+                    <p class="text-[9px] text-emerald-400 uppercase tracking-widest">Wild Marsh GC</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="newRound()" class="text-[10px] bg-slate-700 hover:bg-slate-600 transition px-2 py-1 rounded-full text-slate-300 font-semibold flex items-center gap-1 border border-transparent">
+                    <i data-lucide="rotate-ccw" class="w-3 h-3"></i> New Round
+                </button>
+                <button onclick="toggleSimMode()" id="gps-toggle" class="text-[10px] bg-slate-700 hover:bg-slate-600 transition px-2 py-1 rounded-full text-emerald-400 font-semibold flex items-center gap-1 border border-transparent">
+                    <i data-lucide="satellite" id="gps-icon" class="w-3 h-3"></i> <span id="gps-text">Locating...</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto p-3 space-y-3">
+
+        <section id="gps-section" class="app-section space-y-3">
+            
+            <div class="flex justify-between items-center bg-slate-800 p-2 rounded-xl border border-slate-700 shadow-md">
+                <button onclick="changeHole(-1)" class="p-2 text-slate-400 hover:text-white transition"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                <div class="text-center">
+                    <h2 class="text-lg font-bold text-white" id="current-hole-title">Hole 1</h2>
+                    <p class="text-[10px] text-slate-400 uppercase tracking-widest font-semibold" id="hole-par-view">Par 4 • 385 Yds</p>
+                </div>
+                <button onclick="changeHole(1)" class="p-2 text-slate-400 hover:text-white transition"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+            </div>
+
+            <div class="relative w-full h-72 rounded-xl overflow-hidden border-2 border-slate-700 shadow-xl">
+                <div id="map" class="w-full h-full z-0 bg-slate-800"></div>
+                
+                <div class="absolute top-2 right-2 z-10 flex flex-col gap-2 pointer-events-none" id="target-readout-container">
+                    <div class="bg-slate-900/90 backdrop-blur border border-slate-600 rounded-lg p-2 text-center shadow-lg min-w-[80px]">
+                        <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mb-0.5">Target</span>
+                        <div class="text-xl font-black text-cyan-400 leading-none" id="target-distance">--</div>
+                    </div>
+                </div>
+
+                <div class="absolute top-2 right-2 z-10 flex flex-col gap-2 pointer-events-none hidden" id="landing-readout-container">
+                    <div class="bg-emerald-900/90 backdrop-blur border border-emerald-500 rounded-lg p-2 text-center shadow-lg min-w-[80px]">
+                        <span class="text-[9px] uppercase tracking-wider text-emerald-300 font-bold block mb-0.5">Distance</span>
+                        <div class="text-xl font-black text-white leading-none" id="live-shot-distance">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="action-container" class="bg-slate-800 border border-slate-700 rounded-xl p-3 shadow-md transition-all duration-300">
+                
+                <div id="state-setup" class="space-y-3">
+
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-1.5">
+                        <span class="text-xs font-bold text-white uppercase tracking-wider" id="shot-number-label">Shot 1</span>
+                        <span class="text-[9px] text-slate-500 uppercase tracking-wider">Tap map to set target</span>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1 text-center">1. Lie</label>
+                            <select id="lie-select" class="select-dark select-active w-full" onchange="selectLie(this.value)"></select>
+                        </div>
+                        <div>
+                            <label class="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1 text-center">2. Club</label>
+                            <select id="club-select" class="select-dark select-active w-full" onchange="clubAutoSelected = true; selectClub(this.value)"></select>
+                        </div>
+                        <div>
+                            <label class="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1 text-center">3. Shot Type</label>
+                            <select id="shot-type-select" class="select-dark select-active w-full" onchange="selectShotType(this.value)">
+                                <option value="Full Swing">Full</option>
+                                <option value="Partial">Partial</option>
+                                <option value="Punch">Punch</option>
+                                <option value="Pitch">Pitch</option>
+                                <option value="Chip">Chip</option>
+                                <option value="Flop">Flop</option>
+                                <option value="Bunker">Bunker</option>
+                                <option value="Putt">Putt</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="text-center h-3 text-[9px] text-cyan-400 font-semibold" id="club-suggestion"></div>
+
+                    <div class="flex gap-2 pt-2 border-t border-slate-700">
+                        <button onclick="triggerShot(true)" class="w-1/3 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg text-xs transition active:scale-95 flex flex-col items-center justify-center gap-1 border border-slate-600">
+                            <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i> Quick
+                        </button>
+                        <button onclick="triggerShot(false)" class="flex-1 bg-emerald-500 text-slate-950 font-bold py-3 rounded-lg text-sm transition active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20">
+                            <i data-lucide="edit-3" class="w-4 h-4"></i> Log Execution
+                        </button>
+                    </div>
+                </div>
+
+                <div id="state-landing" class="hidden space-y-3">
+                    <div class="border-b border-slate-700 pb-2">
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                            <i data-lucide="map-pin" class="w-4 h-4 text-emerald-400"></i> Set Shot Markers
+                        </h3>
+                        <p class="text-[10px] text-slate-400 mt-1" id="landing-hint">Tap the map along your intended start line.</p>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="setPlacingMode('aim')" id="chip-aim" class="bg-slate-700 border border-slate-600 text-slate-300 font-bold py-2 rounded-lg text-[10px] uppercase tracking-wider transition active:scale-95">1. Aim</button>
+                        <button onclick="setPlacingMode('pitch')" id="chip-pitch" class="bg-slate-700 border border-slate-600 text-slate-300 font-bold py-2 rounded-lg text-[10px] uppercase tracking-wider transition active:scale-95">2. Pitch</button>
+                        <button onclick="setPlacingMode('rest')" id="chip-rest" class="bg-slate-700 border border-slate-600 text-slate-300 font-bold py-2 rounded-lg text-[10px] uppercase tracking-wider transition active:scale-95">3. Rest</button>
+                    </div>
+
+                    <div class="flex gap-2 pt-1">
+                        <button onclick="confirmLanding()" class="flex-1 bg-cyan-500 text-slate-950 font-bold py-3.5 rounded-lg text-sm shadow-md transition active:scale-95">
+                            Confirm Landing
+                        </button>
+                        <button onclick="openScorecard()" class="w-1/3 bg-slate-700 border border-emerald-500/30 text-emerald-400 font-bold py-3.5 rounded-lg text-xs shadow-md transition active:scale-95 flex flex-col items-center justify-center gap-0.5">
+                            <i data-lucide="flag" class="w-4 h-4"></i> Hole Out
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-3 shadow-md">
+                <h3 class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2 border-b border-slate-700 pb-1">Hole Shot Log</h3>
+                <div id="shot-log" class="max-h-32 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                    <p class="text-xs text-slate-500 italic text-center py-1">No shots recorded yet.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="stats-section" class="app-section hidden space-y-4">
+
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-xl">
+                <h2 class="text-sm font-bold text-white mb-3 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="clipboard-list" class="w-4 h-4 text-emerald-400"></i> This Round
+                </h2>
+                <div id="scorecard-grid" class="space-y-2"></div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-xl">
+                <h2 class="text-sm font-bold text-white mb-3 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="bar-chart" class="w-4 h-4 text-emerald-400"></i> Mental & Execution (Avg)
+                </h2>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-center">
+                        <span class="text-[9px] uppercase text-slate-400 font-bold block">Strategy</span>
+                        <div class="text-xl font-black text-white" id="stat-strat">0.0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-center">
+                        <span class="text-[9px] uppercase text-slate-400 font-bold block">Ball Striking</span>
+                        <div class="text-xl font-black text-emerald-400" id="stat-strike">0.0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-center">
+                        <span class="text-[9px] uppercase text-slate-400 font-bold block">Short Game</span>
+                        <div class="text-xl font-black text-cyan-400" id="stat-short">0.0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-center">
+                        <span class="text-[9px] uppercase text-slate-400 font-bold block">Composure</span>
+                        <div class="text-xl font-black text-amber-400" id="stat-comp">0.0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-xl">
+                <h2 class="text-sm font-bold text-white mb-3 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i> Round Performance
+                </h2>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="bg-slate-900 p-2 rounded-lg border border-slate-700 text-center">
+                        <p class="text-[9px] text-slate-400 uppercase font-semibold mb-1">Score</p>
+                        <p class="text-xl font-black text-white" id="stat-to-par">E</p>
+                    </div>
+                    <div class="bg-slate-900 p-2 rounded-lg border border-slate-700 text-center">
+                        <p class="text-[9px] text-slate-400 uppercase font-semibold mb-1">Avg Putts</p>
+                        <p class="text-xl font-black text-emerald-400" id="stat-avg-putts">0.0</p>
+                    </div>
+                    <div class="bg-slate-900 p-2 rounded-lg border border-slate-700 text-center">
+                        <p class="text-[9px] text-slate-400 uppercase font-semibold mb-1">Top Miss</p>
+                        <p class="text-sm mt-1 font-black text-amber-400" id="stat-top-miss">--</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-xl">
+                <h2 class="text-sm font-bold text-white mb-3 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="target" class="w-4 h-4 text-emerald-400"></i> Scoring Distribution (Lifetime)
+                </h2>
+                <div class="grid grid-cols-5 gap-1.5">
+                    <div class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-center">
+                        <span class="text-[8px] uppercase text-slate-400 font-bold block">Eagle-</span>
+                        <div class="text-lg font-black text-purple-400" id="stat-eagle">0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-center">
+                        <span class="text-[8px] uppercase text-slate-400 font-bold block">Birdie</span>
+                        <div class="text-lg font-black text-emerald-400" id="stat-birdie">0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-center">
+                        <span class="text-[8px] uppercase text-slate-400 font-bold block">Par</span>
+                        <div class="text-lg font-black text-white" id="stat-par">0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-center">
+                        <span class="text-[8px] uppercase text-slate-400 font-bold block">Bogey</span>
+                        <div class="text-lg font-black text-amber-400" id="stat-bogey">0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-center">
+                        <span class="text-[8px] uppercase text-slate-400 font-bold block">Dbl+</span>
+                        <div class="text-lg font-black text-red-400" id="stat-double">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-xl">
+                <h2 class="text-sm font-bold text-white mb-3 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="ruler" class="w-4 h-4 text-emerald-400"></i> Club Distances (Full Swings)
+                </h2>
+                <div class="overflow-hidden rounded-lg border border-slate-700">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-900 text-slate-400 border-b border-slate-700 uppercase text-[9px] tracking-wider">
+                            <tr>
+                                <th class="py-2 px-3 font-semibold">Club</th>
+                                <th class="py-2 px-3 font-semibold text-center">Avg (Yds)</th>
+                                <th class="py-2 px-3 font-semibold text-center">Max (Yds)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="club-stats-body" class="bg-slate-800 divide-y divide-slate-700/50 text-white">
+                            <tr><td colspan="3" class="py-3 text-center text-slate-500 italic">Play shots to generate data.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-xl">
+                <h2 class="text-sm font-bold text-white mb-3 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="history" class="w-4 h-4 text-emerald-400"></i> Round History
+                </h2>
+                <div id="round-history-list" class="space-y-2"></div>
+            </div>
+
+        </section>
+
+        <section id="profile-section" class="app-section hidden space-y-4">
+
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-xl">
+                <h2 class="text-sm font-bold text-white mb-1 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="briefcase" class="w-4 h-4 text-emerald-400"></i> My Bag
+                </h2>
+                <p class="text-[10px] text-slate-400 mb-3">Set your typical full-swing carry yardage for each club. GreenDrive suggests a club based on distance to target, and fine-tunes these numbers as you log more shots.</p>
+                <div id="bag-list" class="space-y-2"></div>
+                <button onclick="addBagClub()" class="mt-3 w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 rounded-lg text-xs transition active:scale-95 flex items-center justify-center gap-1.5">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add Club
+                </button>
+            </div>
+
+        </section>
+
+    </main>
+
+    <div id="scorecard-modal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[100] overflow-y-auto">
+        <div class="min-h-screen flex flex-col items-center justify-start p-4 py-8">
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-6">
+                
+                <div class="text-center border-b border-slate-700 pb-3">
+                    <h2 class="text-xl font-bold text-white">Hole Review</h2>
+                    <p class="text-xs text-emerald-400 mt-1 uppercase tracking-widest font-bold" id="score-hole-title">Hole 1 • Par 4</p>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1.5 text-center">Total Score</label>
+                            <div class="flex items-center justify-between bg-slate-900 border border-slate-700 rounded-lg p-1">
+                                <button onclick="adjustStat('score', -1)" class="w-10 py-2 bg-slate-700 rounded font-bold text-lg hover:bg-slate-600 transition">-</button>
+                                <input type="number" id="input-score" class="w-12 bg-transparent text-center font-black text-2xl text-white outline-none" readonly>
+                                <button onclick="adjustStat('score', 1)" class="w-10 py-2 bg-slate-700 rounded font-bold text-lg hover:bg-slate-600 transition">+</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1.5 text-center">Total Putts</label>
+                            <div class="flex items-center justify-between bg-slate-900 border border-slate-700 rounded-lg p-1">
+                                <button onclick="adjustStat('putts', -1)" class="w-10 py-2 bg-slate-700 rounded font-bold text-lg hover:bg-slate-600 transition">-</button>
+                                <input type="number" id="input-putts" class="w-12 bg-transparent text-center font-black text-2xl text-white outline-none" readonly>
+                                <button onclick="adjustStat('putts', 1)" class="w-10 py-2 bg-slate-700 rounded font-bold text-lg hover:bg-slate-600 transition">+</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <span class="text-xs text-slate-400 italic">Rate the hole out of 4 (1=Poor, 4=Excellent)</span>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] uppercase text-emerald-400 font-bold mb-1.5">1. Strategy & Decisions</label>
+                        <div class="flex segmented-control w-full">
+                            <input type="radio" id="q1-1" name="q1" value="1"><label for="q1-1">1</label>
+                            <input type="radio" id="q1-2" name="q1" value="2"><label for="q1-2">2</label>
+                            <input type="radio" id="q1-3" name="q1" value="3" checked><label for="q1-3">3</label>
+                            <input type="radio" id="q1-4" name="q1" value="4"><label for="q1-4">4</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-emerald-400 font-bold mb-1.5">2. Ball Striking</label>
+                        <div class="flex segmented-control w-full">
+                            <input type="radio" id="q2-1" name="q2" value="1"><label for="q2-1">1</label>
+                            <input type="radio" id="q2-2" name="q2" value="2"><label for="q2-2">2</label>
+                            <input type="radio" id="q2-3" name="q2" value="3" checked><label for="q2-3">3</label>
+                            <input type="radio" id="q2-4" name="q2" value="4"><label for="q2-4">4</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-emerald-400 font-bold mb-1.5">3. Short Game Efficiency</label>
+                        <div class="flex segmented-control w-full">
+                            <input type="radio" id="q3-1" name="q3" value="1"><label for="q3-1">1</label>
+                            <input type="radio" id="q3-2" name="q3" value="2"><label for="q3-2">2</label>
+                            <input type="radio" id="q3-3" name="q3" value="3" checked><label for="q3-3">3</label>
+                            <input type="radio" id="q3-4" name="q3" value="4"><label for="q3-4">4</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-emerald-400 font-bold mb-1.5">4. Composure</label>
+                        <div class="flex segmented-control w-full">
+                            <input type="radio" id="q4-1" name="q4" value="1"><label for="q4-1">1</label>
+                            <input type="radio" id="q4-2" name="q4" value="2"><label for="q4-2">2</label>
+                            <input type="radio" id="q4-3" name="q4" value="3" checked><label for="q4-3">3</label>
+                            <input type="radio" id="q4-4" name="q4" value="4"><label for="q4-4">4</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-emerald-400 font-bold mb-1.5">5. Overall Satisfaction</label>
+                        <div class="flex segmented-control w-full">
+                            <input type="radio" id="q5-1" name="q5" value="1"><label for="q5-1">1</label>
+                            <input type="radio" id="q5-2" name="q5" value="2"><label for="q5-2">2</label>
+                            <input type="radio" id="q5-3" name="q5" value="3" checked><label for="q5-3">3</label>
+                            <input type="radio" id="q5-4" name="q5" value="4"><label for="q5-4">4</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pt-4 border-t border-slate-700 mt-6">
+                    <button onclick="document.getElementById('scorecard-modal').classList.add('hidden')" class="w-1/3 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3.5 rounded-xl transition">Cancel</button>
+                    <button onclick="saveHoleData()" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3.5 rounded-xl shadow-lg transition shadow-emerald-500/20">
+                        Save Analytics
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="flight-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-[100] flex flex-col items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-6">
+            <div class="text-center border-b border-slate-700 pb-3">
+                <h2 class="text-lg font-black text-white tracking-tight" id="modal-title-text">Execution Log</h2>
+                <p class="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-wider" id="flight-modal-subtitle">Full Swing • Driver</p>
+            </div>
+            
+            <div id="full-swing-ui" class="space-y-5">
+                <p class="text-[10px] text-slate-400 text-center -mt-2">Flight shape is reconstructed from GPS — just log the contact.</p>
+                <div>
+                    <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1.5 text-center">Contact (Mishit)</label>
+                    <div class="grid grid-cols-4 gap-1">
+                        <div class="col-span-4 flex segmented-control red-theme w-full mb-1">
+                            <input type="radio" id="con-pure" name="vec-contact" value="Pure" checked><label for="con-pure" class="!bg-emerald-500/20 !border-emerald-500 !text-emerald-400">Pure</label>
+                        </div>
+                        <div class="col-span-4 flex segmented-control red-theme w-full">
+                            <input type="radio" id="con-toe" name="vec-contact" value="Toe"><label for="con-toe">Toe</label>
+                            <input type="radio" id="con-heel" name="vec-contact" value="Heel"><label for="con-heel">Heel</label>
+                            <input type="radio" id="con-fat" name="vec-contact" value="Fat"><label for="con-fat">Fat</label>
+                        </div>
+                        <div class="col-span-4 flex segmented-control red-theme w-full">
+                            <input type="radio" id="con-thin" name="vec-contact" value="Thin"><label for="con-thin">Thin</label>
+                            <input type="radio" id="con-top" name="vec-contact" value="Top"><label for="con-top">Top</label>
+                            <input type="radio" id="con-shank" name="vec-contact" value="Shank"><label for="con-shank">Shank</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="short-game-ui" class="space-y-6 hidden">
+                <div>
+                    <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1.5 text-center">Distance Control</label>
+                    <div class="grid grid-cols-2 gap-1 mb-1">
+                        <div class="flex segmented-control blue-theme w-full">
+                            <input type="radio" id="sg-dist-p" name="sg-dist" value="Perfect" checked><label for="sg-dist-p" class="!text-emerald-400">Perfect</label>
+                        </div>
+                        <div class="flex segmented-control blue-theme w-full">
+                            <input type="radio" id="sg-dist-made" name="sg-dist" value="Made"><label for="sg-dist-made" class="!text-emerald-400">Made</label>
+                        </div>
+                    </div>
+                    <div class="flex segmented-control blue-theme w-full">
+                        <input type="radio" id="sg-dist-ws" name="sg-dist" value="Way Short"><label for="sg-dist-ws" class="text-[9px]">Way Short</label>
+                        <input type="radio" id="sg-dist-s" name="sg-dist" value="Short"><label for="sg-dist-s">Short</label>
+                        <input type="radio" id="sg-dist-l" name="sg-dist" value="Long"><label for="sg-dist-l">Long</label>
+                        <input type="radio" id="sg-dist-b" name="sg-dist" value="Blasted"><label for="sg-dist-b" class="text-[9px]">Blasted</label>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1.5 text-center">Line / Read</label>
+                    <div class="flex segmented-control red-theme w-full">
+                        <input type="radio" id="sg-line-pulled" name="sg-line" value="Pulled"><label for="sg-line-pulled">Pulled</label>
+                        <input type="radio" id="sg-line-on" name="sg-line" value="On Line" checked><label for="sg-line-on" class="!text-emerald-400">On Line</label>
+                        <input type="radio" id="sg-line-pushed" name="sg-line" value="Pushed"><label for="sg-line-pushed">Pushed</label>
+                        <input type="radio" id="sg-line-misread" name="sg-line" value="Misread"><label for="sg-line-misread">Misread</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-2 border-t border-slate-700">
+                <button onclick="document.getElementById('flight-modal').classList.add('hidden')" class="w-1/3 bg-slate-700 text-white font-bold py-3.5 rounded-xl transition active:scale-95">Cancel</button>
+                <button onclick="commitFlightDetails()" class="flex-1 bg-emerald-500 text-slate-950 font-bold py-3.5 rounded-xl shadow-lg transition active:scale-95">Log Shot</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="club-detail-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-[100] flex flex-col items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div class="text-center border-b border-slate-700 pb-3">
+                <h2 class="text-lg font-black text-white tracking-tight" id="club-detail-title">Driver</h2>
+                <p class="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-wider">Shot Data</p>
+            </div>
+            <div id="club-detail-body" class="space-y-4"></div>
+            <div class="flex gap-2 pt-2 border-t border-slate-700">
+                <button onclick="document.getElementById('club-detail-modal').classList.add('hidden')" class="flex-1 bg-slate-700 text-white font-bold py-3.5 rounded-xl transition active:scale-95">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-700 py-2 shadow-2xl z-50" style="padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));">
+        <div class="max-w-md mx-auto flex justify-around items-center">
+            <button onclick="switchTab('gps')" id="nav-gps" class="flex flex-col items-center gap-1 text-emerald-400 font-medium w-1/3 border-r border-slate-800">
+                <i data-lucide="map" class="w-5 h-5"></i><span class="text-[10px] uppercase tracking-wider">Play</span>
+            </button>
+            <button onclick="switchTab('stats')" id="nav-stats" class="flex flex-col items-center gap-1 text-slate-500 hover:text-slate-300 w-1/3 border-r border-slate-800">
+                <i data-lucide="bar-chart-2" class="w-5 h-5"></i><span class="text-[10px] uppercase tracking-wider">Stats</span>
+            </button>
+            <button onclick="switchTab('profile')" id="nav-profile" class="flex flex-col items-center gap-1 text-slate-500 hover:text-slate-300 w-1/3">
+                <i data-lucide="briefcase" class="w-5 h-5"></i><span class="text-[10px] uppercase tracking-wider">Bag</span>
+            </button>
+        </div>
+    </nav>
+
+    <script>
+        const courseData = [
+            { hole: 1, par: 4, dist: 385 }, { hole: 2, par: 4, dist: 410 }, { hole: 3, par: 3, dist: 175 },
+            { hole: 4, par: 5, dist: 520 }, { hole: 5, par: 4, dist: 390 }, { hole: 6, par: 4, dist: 360 },
+            { hole: 7, par: 3, dist: 160 }, { hole: 8, par: 4, dist: 400 }, { hole: 9, par: 5, dist: 540 },
+            { hole: 10, par: 4, dist: 395 }, { hole: 11, par: 5, dist: 510 }, { hole: 12, par: 3, dist: 165 },
+            { hole: 13, par: 4, dist: 410 }, { hole: 14, par: 4, dist: 375 }, { hole: 15, par: 3, dist: 185 },
+            { hole: 16, par: 5, dist: 530 }, { hole: 17, par: 4, dist: 400 }, { hole: 18, par: 4, dist: 420 }
+        ];
+
+        let currentHoleIndex = 0;
+        const STORAGE_KEY = 'greendrive-round';
+
+        // --- GOLFER PROFILE (bag of clubs + approximate carry yardages) ---
+        const PROFILE_KEY = 'greendrive-profile';
+        const DEFAULT_BAG = [
+            { name: 'Driver', yardage: 230 },
+            { name: '3 Wood', yardage: 210 },
+            { name: 'Hybrid', yardage: 190 },
+            { name: '5 Iron', yardage: 170 },
+            { name: '7 Iron', yardage: 150 },
+            { name: 'Pitch Wedge', yardage: 100 },
+            { name: 'Putter', yardage: 0 }
+        ];
+        let golferProfile = { clubs: DEFAULT_BAG.map(c => ({...c})) };
+
+        function loadProfile() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(PROFILE_KEY));
+                if (saved && Array.isArray(saved.clubs) && saved.clubs.length > 0) golferProfile = saved;
+            } catch(e) { console.error("Could not load profile", e); }
+        }
+
+        function saveProfile() {
+            try { localStorage.setItem(PROFILE_KEY, JSON.stringify(golferProfile)); } catch(e) { console.error("Could not save profile", e); }
+        }
+
+        function freshRoundData() {
+            return Array.from({ length: 18 }, (_, i) => ({
+                hole: i + 1, par: courseData[i].par,
+                score: courseData[i].par, putts: 2,
+                q1: 3, q2: 3, q3: 3, q4: 3, q5: 3, // 1-4 scale survey
+                played: false,
+                shots: [],
+                target: null
+            }));
+        }
+        let roundData = freshRoundData();
+
+        function saveRound() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ roundData, currentHoleIndex }));
+            } catch(e) { console.error("Could not save round", e); }
+        }
+
+        // Fill in any fields missing from an older saved schema so stats never compute against undefined.
+        function normalizeHole(hole, i) {
+            const fresh = { hole: i + 1, par: courseData[i].par, score: courseData[i].par, putts: 2, q1: 3, q2: 3, q3: 3, q4: 3, q5: 3, played: false, shots: [], target: null };
+            const merged = Object.assign(fresh, hole);
+            if (!Array.isArray(merged.shots)) merged.shots = [];
+            return merged;
+        }
+
+        function loadRound() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+                if (saved && Array.isArray(saved.roundData) && saved.roundData.length === 18) {
+                    roundData = saved.roundData.map((hole, i) => normalizeHole(hole, i));
+                    currentHoleIndex = Math.min(Math.max(saved.currentHoleIndex || 0, 0), 17);
+                }
+            } catch(e) { console.error("Could not load saved round", e); }
+        }
+
+        const HISTORY_KEY = 'greendrive-history';
+        const MAX_HISTORY_ROUNDS = 50;
+
+        function archiveRound() {
+            // Only archive rounds with at least one logged shot or played hole
+            const hasData = roundData.some(h => h.played || h.shots.length > 0);
+            if (!hasData) return;
+            try {
+                const history = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+                history.push({ savedAt: new Date().toISOString(), course: 'Wild Marsh GC', roundData });
+                if (history.length > MAX_HISTORY_ROUNDS) history.splice(0, history.length - MAX_HISTORY_ROUNDS);
+                localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+            } catch(e) { console.error("Could not archive round", e); }
+        }
+
+        function newRound() {
+            if (!confirm("Start a new round? The current round will be archived to history.")) return;
+            archiveRound();
+            localStorage.removeItem(STORAGE_KEY);
+            roundData = freshRoundData();
+            currentHoleIndex = 0;
+            if(targetMarker) { map.removeLayer(targetMarker); targetMarker = null; }
+            resetToSetupState(); loadHoleDataIntoUI(); calculateStats();
+            switchTab('gps');
+        }
+
+        let map, userMarker, targetMarker, landingMarker, pitchMarker, aimMarker;
+        let placingMode = null; // null | 'pitch' | 'aim' — what a landing-state map tap places
+        let intendedTargetLine = null;
+        let shotMarkersLayer = [], shotPolyline = null;
+        
+        let currentPosition = null;
+        let activeShotStartLoc = null;
+        
+        let selectedLie = 'Tee Box';
+        let selectedClub = 'Driver';
+        let selectedShotType = 'Full Swing';
+        
+        let appMode = 'setup'; 
+        let isSimMode = false;
+        let gpsWatchId = null;
+
+        const liesMap = ['Tee Box', 'Fairway', 'Rough', 'Sand', 'Waste', 'Fringe', 'Green'];
+        const shortGameTypes = ['Pitch', 'Chip', 'Flop', 'Bunker', 'Putt'];
+
+        window.onload = function() {
+            loadRound();
+            loadProfile();
+            renderClubSelect();
+            lucide.createIcons();
+            initMap();
+            loadHoleDataIntoUI();
+            loadTargetMarker();
+            startLiveLocationTracking();
+            requestWakeLock();
+        };
+
+        // --- PWA: offline cache + keep screen awake on the course ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(e => console.warn("SW registration failed", e));
+        }
+
+        let wakeLock = null;
+        async function requestWakeLock() {
+            if (!('wakeLock' in navigator)) return;
+            try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) { /* denied or unsupported */ }
+        }
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') requestWakeLock();
+        });
+
+        // --- MAP & GPS LOGIC ---
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView([45.1666, -93.8570], 16); 
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '&copy; Esri', maxZoom: 20
+            }).addTo(map);
+
+            map.on('click', function(e) {
+                if(!currentPosition) return;
+                if (appMode === 'setup') {
+                    placeTargetMarker(e.latlng);
+                    roundData[currentHoleIndex].target = { lat: e.latlng.lat, lng: e.latlng.lng };
+                    saveRound();
+                    updateDistances();
+                }
+                else if (appMode === 'landing') {
+                    // Sequential flow: each tap places the active marker, then advances aim -> pitch -> rest
+                    if (placingMode === 'aim') {
+                        if(aimMarker) aimMarker.setLatLng(e.latlng);
+                        else {
+                            const icon = L.divIcon({ className: '', html: `<div style="background:#ef4444;width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 5px #000;"></div>`, iconSize: [12, 12], iconAnchor: [6, 6] });
+                            aimMarker = L.marker(e.latlng, {icon: icon}).addTo(map);
+                        }
+                        redrawAimLine(e.latlng);
+                        setPlacingMode('pitch');
+                    } else if (placingMode === 'pitch') {
+                        if(pitchMarker) pitchMarker.setLatLng(e.latlng);
+                        else {
+                            const icon = L.divIcon({ className: '', html: `<div style="background:#10b981;width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 5px #000;"></div>`, iconSize: [12, 12], iconAnchor: [6, 6] });
+                            pitchMarker = L.marker(e.latlng, {icon: icon}).addTo(map);
+                        }
+                        setPlacingMode('rest');
+                    } else {
+                        if(landingMarker) landingMarker.setLatLng(e.latlng);
+                        else {
+                            const icon = L.divIcon({ className: '', html: `<div style="background:#ffffff;width:14px;height:14px;border-radius:50%;border:2px solid #000;box-shadow:0 0 5px #000;"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
+                            landingMarker = L.marker(e.latlng, {icon: icon}).addTo(map);
+                        }
+                        placingMode = 'rest';
+                    }
+                    updateStepChips();
+                    updateDistances();
+                }
+            });
+        }
+
+        function placeTargetMarker(latlng) {
+            if (targetMarker) targetMarker.setLatLng(latlng);
+            else {
+                const icon = L.divIcon({ className: '', html: `<div style="background:#ef4444;width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 5px #000;"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
+                targetMarker = L.marker(latlng, {icon: icon}).addTo(map);
+            }
+        }
+
+        // Restore the saved target marker (if any) for the current hole.
+        function loadTargetMarker() {
+            const t = roundData[currentHoleIndex].target;
+            if (t) placeTargetMarker(L.latLng(t.lat, t.lng));
+            else document.getElementById('target-distance').innerHTML = '--';
+            updateDistances();
+        }
+
+        function toggleSimMode() {
+            isSimMode = !isSimMode;
+            const btn = document.getElementById('gps-toggle');
+            const icon = document.getElementById('gps-icon');
+            const text = document.getElementById('gps-text');
+
+            if (isSimMode) {
+                if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
+                btn.className = "text-[10px] bg-purple-500/20 px-2 py-1 rounded-full text-purple-400 font-semibold flex items-center gap-1 border border-purple-500/50";
+                icon.setAttribute('data-lucide', 'joystick'); text.textContent = "Sim Mode";
+                lucide.createIcons();
+                if (!currentPosition) {
+                    const center = map.getCenter();
+                    currentPosition = { latitude: center.lat, longitude: center.lng };
+                }
+                updateUserMarker(currentPosition.latitude, currentPosition.longitude, true);
+            } else {
+                btn.className = "text-[10px] bg-emerald-500/20 px-2 py-1 rounded-full text-emerald-400 font-semibold flex items-center gap-1 border border-transparent";
+                icon.setAttribute('data-lucide', 'satellite'); text.textContent = "Locating...";
+                lucide.createIcons();
+                if (userMarker) userMarker.dragging.disable();
+                startLiveLocationTracking();
+            }
+        }
+
+        function updateUserMarker(lat, lng, makeDraggable) {
+            const latlng = [lat, lng];
+            if (!userMarker) {
+                const icon = L.divIcon({ className: '', html: `<div style="background:#3b82f6;width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 5px #000;"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
+                userMarker = L.marker(latlng, {draggable: makeDraggable, icon: icon}).addTo(map);
+                userMarker.on('drag', function(e) { currentPosition = { latitude: e.latlng.lat, longitude: e.latlng.lng }; updateDistances(); });
+            } else {
+                userMarker.setLatLng(latlng);
+                makeDraggable ? userMarker.dragging.enable() : userMarker.dragging.disable();
+            }
+        }
+
+        function startLiveLocationTracking() {
+            if (!navigator.geolocation || isSimMode) return;
+            gpsWatchId = navigator.geolocation.watchPosition(
+                (pos) => {
+                    if (isSimMode) return;
+                    currentPosition = pos.coords;
+                    document.getElementById('gps-text').innerHTML = `±${Math.round(pos.coords.accuracy * 3.28)}ft`;
+                    updateUserMarker(pos.coords.latitude, pos.coords.longitude, false);
+                    updateDistances();
+                },
+                (err) => { if(!isSimMode) document.getElementById('gps-text').textContent = "GPS Lost"; },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+
+        function updateDistances() {
+            if (!currentPosition) return;
+            if (appMode === 'setup' && targetMarker) {
+                const userLL = L.latLng(currentPosition.latitude, currentPosition.longitude);
+                const dist = Math.round(userLL.distanceTo(targetMarker.getLatLng()) * 1.09361);
+                document.getElementById('target-distance').innerHTML = `${dist}<span class="text-xs text-slate-400">yd</span>`;
+                suggestClub(dist);
+            }
+            if (appMode === 'landing' && activeShotStartLoc && landingMarker) {
+                const startLL = L.latLng(activeShotStartLoc.lat, activeShotStartLoc.lon);
+                const dist = Math.round(startLL.distanceTo(landingMarker.getLatLng()) * 1.09361);
+                document.getElementById('live-shot-distance').innerHTML = `${dist}<span class="text-xs text-emerald-300">yd</span>`;
+            }
+        }
+
+        // --- SETUP LOGIC (Lie/Club/Shot Type dropdowns) ---
+        // Tracks whether the user has manually picked a club for the shot currently being set up,
+        // so the distance-based suggestion doesn't fight a deliberate choice.
+        let clubAutoSelected = false;
+
+        // Rebuilds the Lie dropdown's options and forces Tee Box on the first shot of a hole.
+        function renderLieOptions() {
+            const select = document.getElementById('lie-select');
+            const shots = roundData[currentHoleIndex].shots;
+            document.getElementById('shot-number-label').textContent = `Shot ${shots.length + 1}`;
+
+            if (shots.length === 0) selectedLie = 'Tee Box';
+            else if (selectedLie === 'Tee Box') selectedLie = 'Fairway';
+
+            select.innerHTML = liesMap.map(lie =>
+                `<option value="${lie}" ${lie === selectedLie ? 'selected' : ''}>${lie}</option>`
+            ).join('');
+        }
+
+        // Renders the club dropdown from the golfer's bag (Bag tab). Falls back to the first
+        // club if the currently selected one no longer exists in the bag.
+        function renderClubSelect() {
+            const select = document.getElementById('club-select');
+            if (!golferProfile.clubs.some(c => c.name === selectedClub)) {
+                selectedClub = golferProfile.clubs[0].name;
+            }
+            select.innerHTML = golferProfile.clubs.map(c =>
+                `<option value="${c.name}" ${c.name === selectedClub ? 'selected' : ''}>${c.name}</option>`
+            ).join('');
+        }
+
+        // Recommends a club for a Full Swing based on the bag's carry yardages and the
+        // current distance-to-target. Auto-applies the suggestion once per shot, unless
+        // the golfer has already manually picked a club for this shot.
+        function suggestClub(distanceYds) {
+            const hint = document.getElementById('club-suggestion');
+            if (selectedShotType !== 'Full Swing') { hint.textContent = ''; return; }
+            const candidates = golferProfile.clubs.filter(c => c.name !== 'Putter' && c.yardage > 0);
+            if (candidates.length === 0) { hint.textContent = ''; return; }
+
+            let best = candidates[0];
+            for (const c of candidates) {
+                if (Math.abs(c.yardage - distanceYds) < Math.abs(best.yardage - distanceYds)) best = c;
+            }
+            hint.textContent = `Suggested: ${best.name} (${best.yardage}y)`;
+
+            if (!clubAutoSelected) {
+                selectClub(best.name);
+                clubAutoSelected = true;
+            }
+        }
+
+        function selectLie(lie) {
+            selectedLie = lie;
+            renderLieOptions(); // Re-render options (may force Tee Box back on shot 1)
+            applyLieAutoAdjust(selectedLie);
+        }
+
+        // Keep the selected club/shot-type sane whenever the lie changes (manually or automatically).
+        function applyLieAutoAdjust(lie) {
+            if (lie === 'Green') { selectClub('Putter'); selectShotType('Putt'); }
+            else if (lie === 'Sand') {
+                selectShotType('Bunker');
+                if (selectedClub === 'Putter') selectClub('Pitch Wedge');
+            }
+            else if (lie === 'Tee Box') {
+                if (selectedClub === 'Putter' || selectedShotType === 'Putt') { selectClub(golferProfile.clubs[0].name); selectShotType('Full Swing'); }
+            }
+            else if (selectedClub === 'Putter' && lie !== 'Fringe') { selectClub('Pitch Wedge'); selectShotType('Pitch'); }
+        }
+
+        function selectClub(clubName) {
+            selectedClub = clubName;
+            const select = document.getElementById('club-select');
+            if (select.value !== clubName) select.value = clubName;
+            if(clubName === 'Putter' && selectedShotType !== 'Putt') selectShotType('Putt');
+        }
+
+        function selectShotType(typeName) {
+            selectedShotType = typeName;
+            const select = document.getElementById('shot-type-select');
+            if (select.value !== typeName) select.value = typeName;
+            if(typeName === 'Putt' && selectedClub !== 'Putter') selectClub('Putter');
+        }
+
+        // --- BAG MANAGEMENT (Bag tab) ---
+        function renderBagList() {
+            const container = document.getElementById('bag-list');
+            container.innerHTML = '';
+            golferProfile.clubs.forEach((club, i) => {
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-2 bg-slate-900 border border-slate-700 p-2 rounded-lg";
+                div.innerHTML = `
+                    <span class="bag-handle cursor-grab active:cursor-grabbing text-slate-500 touch-none p-1 -ml-1" data-idx="${i}" title="Drag to reorder"><i data-lucide="grip-vertical" class="w-4 h-4"></i></span>
+                    <input type="text" value="${club.name}" data-idx="${i}" class="bag-name flex-1 bg-transparent text-white text-sm font-semibold outline-none border-b border-slate-700 focus:border-emerald-500 pb-0.5">
+                    <input type="number" value="${club.yardage}" data-idx="${i}" class="bag-yardage w-16 bg-slate-800 text-center text-emerald-400 font-bold text-sm rounded outline-none py-1.5">
+                    <span class="text-[9px] text-slate-500">yds</span>
+                    <button data-idx="${i}" class="bag-detail p-1.5 text-cyan-400 hover:text-cyan-300 transition" title="View shot data"><i data-lucide="line-chart" class="w-3.5 h-3.5"></i></button>
+                    <button data-idx="${i}" class="bag-remove p-1.5 text-red-400 hover:text-red-300 transition" title="Remove club"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                `;
+                container.appendChild(div);
+            });
+            container.querySelectorAll('.bag-name').forEach(inp => inp.onchange = () => updateBagClub(parseInt(inp.dataset.idx), 'name', inp.value));
+            container.querySelectorAll('.bag-yardage').forEach(inp => inp.onchange = () => updateBagClub(parseInt(inp.dataset.idx), 'yardage', inp.value));
+            container.querySelectorAll('.bag-remove').forEach(btn => btn.onclick = () => removeBagClub(parseInt(btn.dataset.idx)));
+            container.querySelectorAll('.bag-detail').forEach(btn => btn.onclick = () => openClubDetail(golferProfile.clubs[parseInt(btn.dataset.idx)].name));
+            container.querySelectorAll('.bag-handle').forEach(handle => handle.onpointerdown = (e) => startBagDrag(e, parseInt(handle.dataset.idx)));
+            lucide.createIcons();
+        }
+
+        // --- BAG REORDER (drag handle, pointer-events based for touch support) ---
+        let bagDragState = null;
+
+        function startBagDrag(e, idx) {
+            e.preventDefault();
+            const container = document.getElementById('bag-list');
+            const rows = [...container.children];
+            const row = rows[idx];
+            const rowHeight = row.offsetHeight + 8; // includes space-y-2 gap
+            bagDragState = { idx, targetIdx: idx, startY: e.clientY, row, count: rows.length, rowHeight };
+            row.style.position = 'relative';
+            row.style.zIndex = '10';
+            row.classList.add('shadow-xl', 'opacity-90');
+            document.addEventListener('pointermove', onBagDragMove);
+            document.addEventListener('pointerup', onBagDragEnd);
+        }
+
+        function onBagDragMove(e) {
+            if (!bagDragState) return;
+            const dy = e.clientY - bagDragState.startY;
+            bagDragState.row.style.transform = `translateY(${dy}px)`;
+            const shift = Math.round(dy / bagDragState.rowHeight);
+            bagDragState.targetIdx = Math.min(bagDragState.count - 1, Math.max(0, bagDragState.idx + shift));
+        }
+
+        function onBagDragEnd() {
+            if (!bagDragState) return;
+            document.removeEventListener('pointermove', onBagDragMove);
+            document.removeEventListener('pointerup', onBagDragEnd);
+            const { idx, targetIdx } = bagDragState;
+            bagDragState = null;
+            if (targetIdx !== idx) {
+                const [moved] = golferProfile.clubs.splice(idx, 1);
+                golferProfile.clubs.splice(targetIdx, 0, moved);
+                saveProfile();
+                renderClubSelect();
+            }
+            renderBagList(); // also resets transform/z-index on the dragged row
+        }
+
+        function updateBagClub(idx, field, value) {
+            if (field === 'name') {
+                const oldName = golferProfile.clubs[idx].name;
+                const newName = value.trim() || oldName;
+                golferProfile.clubs[idx].name = newName;
+                if (selectedClub === oldName) selectedClub = newName;
+            } else {
+                golferProfile.clubs[idx].yardage = Math.max(0, parseInt(value) || 0);
+            }
+            saveProfile();
+            renderClubSelect();
+            renderBagList();
+        }
+
+        function addBagClub() {
+            golferProfile.clubs.push({ name: 'New Club', yardage: 100 });
+            saveProfile();
+            renderBagList();
+            renderClubSelect();
+        }
+
+        function removeBagClub(idx) {
+            if (golferProfile.clubs.length <= 1) return alert("Your bag needs at least one club.");
+            const removed = golferProfile.clubs[idx];
+            if (!confirm(`Remove ${removed.name} from your bag?`)) return;
+            golferProfile.clubs.splice(idx, 1);
+            if (selectedClub === removed.name) selectedClub = golferProfile.clubs[0].name;
+            saveProfile();
+            renderBagList();
+            renderClubSelect();
+        }
+
+        // --- CLUB DETAIL VIEW (box-and-whisker, shot shape/roll-out) ---
+
+        // Collects every logged Full Swing shot for a club across the current round
+        // and archived history, each tagged with a human-readable origin label.
+        function getClubShots(clubName) {
+            const entries = [];
+            const accumulate = (rd, roundLabel) => {
+                (rd || []).forEach((hole, hIdx) => {
+                    (hole.shots || []).forEach((shot, sIdx) => {
+                        if (shot.type === 'Full Swing' && shot.club === clubName) {
+                            entries.push({ shot, label: `${roundLabel} • Hole ${hIdx + 1} • Shot ${sIdx + 1}` });
+                        }
+                    });
+                });
+            };
+            accumulate(roundData, 'This Round');
+            try {
+                const history = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+                history.forEach(r => accumulate(r.roundData, new Date(r.savedAt).toLocaleDateString()));
+            } catch(e) { /* ignore malformed history */ }
+            return entries;
+        }
+
+        // Five-number summary (min/Q1/median/Q3/max) via linear-interpolation quantiles.
+        function computeBoxStats(values) {
+            if (!values.length) return null;
+            const sorted = [...values].sort((a, b) => a - b);
+            const quantile = (p) => {
+                const pos = (sorted.length - 1) * p;
+                const base = Math.floor(pos);
+                const rest = pos - base;
+                return sorted[base + 1] !== undefined ? sorted[base] + rest * (sorted[base + 1] - sorted[base]) : sorted[base];
+            };
+            return { min: sorted[0], q1: quantile(0.25), median: quantile(0.5), q3: quantile(0.75), max: sorted[sorted.length - 1] };
+        }
+
+        // Reconstructs offline (shot shape) and carry/roll distances by projecting the
+        // landing and resting points onto the tee->target line, mirroring physics.html.
+        function computeShotMetrics(shot) {
+            if (shot.restLat === undefined) return null;
+            const tee = { lat: shot.lat, lon: shot.lon };
+            const targetCoord = shot.targetLat !== undefined ? { lat: shot.targetLat, lon: shot.targetLon } : { lat: shot.restLat, lon: shot.restLon };
+            const latYds = 121522;
+            const lonYds = Math.cos(tee.lat * Math.PI / 180) * 121522;
+            const toXY = (c) => ({ x: (c.lon - tee.lon) * lonYds, y: (c.lat - tee.lat) * latYds });
+            const tTarget = toXY(targetCoord);
+            const targetAngle = Math.atan2(tTarget.y, tTarget.x);
+            const angleDiff = (Math.PI / 2) - targetAngle;
+            const project = (pt) => ({
+                x: pt.x * Math.cos(angleDiff) - pt.y * Math.sin(angleDiff),
+                z: pt.x * Math.sin(angleDiff) + pt.y * Math.cos(angleDiff)
+            });
+            const projStopped = project(toXY({ lat: shot.restLat, lon: shot.restLon }));
+            let carryYds = projStopped.z, rollYds = 0;
+            if (shot.pitchLat !== undefined) {
+                const projLanded = project(toXY({ lat: shot.pitchLat, lon: shot.pitchLon }));
+                carryYds = projLanded.z;
+                rollYds = projStopped.z - projLanded.z;
+            }
+            return { offlineYds: projStopped.x, carryYds, rollYds };
+        }
+
+        function aggregateClubStats(clubName) {
+            const entries = getClubShots(clubName);
+            const distances = entries.map(e => e.shot.distance);
+            const metrics = entries.map(e => computeShotMetrics(e.shot)).filter(m => m);
+            const avg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+            return {
+                entries,
+                distances,
+                metrics,
+                boxStats: computeBoxStats(distances),
+                avgOffline: avg(metrics.map(m => m.offlineYds)),
+                avgRoll: avg(metrics.map(m => m.rollYds))
+            };
+        }
+
+        // Renders a horizontal box-and-whisker chart; markValue (e.g. the bag's
+        // current yardage) is shown as a dashed reference line if it falls in range.
+        function renderBoxPlotSVG(stats, markValue) {
+            const { min, q1, median, q3, max } = stats;
+            const pad = Math.max((max - min) * 0.1, 1);
+            const lo = min - pad, hi = max + pad;
+            const xScale = (v) => 20 + (v - lo) / (hi - lo) * 260;
+            const y = 36, boxH = 24;
+            let markEl = '';
+            if (markValue !== undefined && markValue !== null && markValue >= lo && markValue <= hi) {
+                const mx = xScale(markValue);
+                markEl = `<line x1="${mx}" y1="${y - boxH/2 - 6}" x2="${mx}" y2="${y + boxH/2 + 6}" stroke="#fbbf24" stroke-width="2" stroke-dasharray="3,2"/>
+                    <text x="${mx}" y="${y + boxH/2 + 32}" fill="#fbbf24" font-size="9" text-anchor="middle">Bag: ${Math.round(markValue)}</text>`;
+            }
+            return `<svg viewBox="0 0 300 90" class="w-full h-[90px]">
+                <line x1="${xScale(min)}" y1="${y}" x2="${xScale(q1)}" y2="${y}" stroke="#64748b" stroke-width="2"/>
+                <line x1="${xScale(q3)}" y1="${y}" x2="${xScale(max)}" y2="${y}" stroke="#64748b" stroke-width="2"/>
+                <line x1="${xScale(min)}" y1="${y-6}" x2="${xScale(min)}" y2="${y+6}" stroke="#64748b" stroke-width="2"/>
+                <line x1="${xScale(max)}" y1="${y-6}" x2="${xScale(max)}" y2="${y+6}" stroke="#64748b" stroke-width="2"/>
+                <rect x="${xScale(q1)}" y="${y - boxH/2}" width="${xScale(q3) - xScale(q1)}" height="${boxH}" fill="#10b98133" stroke="#10b981" stroke-width="2"/>
+                <line x1="${xScale(median)}" y1="${y - boxH/2}" x2="${xScale(median)}" y2="${y + boxH/2}" stroke="#10b981" stroke-width="2"/>
+                ${markEl}
+                <text x="${xScale(min)}" y="${y + boxH/2 + 16}" fill="#94a3b8" font-size="9" text-anchor="middle">${Math.round(min)}</text>
+                <text x="${xScale(median)}" y="${y - boxH/2 - 6}" fill="#e2e8f0" font-size="10" font-weight="bold" text-anchor="middle">${Math.round(median)}</text>
+                <text x="${xScale(max)}" y="${y + boxH/2 + 16}" fill="#94a3b8" font-size="9" text-anchor="middle">${Math.round(max)}</text>
+            </svg>`;
+        }
+
+        // Shots backing the currently open club-detail modal, indexed for the "Analyze" buttons.
+        let clubDetailShots = [];
+
+        function openClubDetail(clubName) {
+            const modal = document.getElementById('club-detail-modal');
+            document.getElementById('club-detail-title').textContent = clubName;
+            const club = golferProfile.clubs.find(c => c.name === clubName);
+            const agg = aggregateClubStats(clubName);
+            clubDetailShots = agg.entries.map(e => e.shot);
+            const body = document.getElementById('club-detail-body');
+
+            if (agg.distances.length === 0) {
+                body.innerHTML = `<p class="text-xs text-slate-500 italic text-center py-4">No logged shots yet for this club.</p>`;
+                modal.classList.remove('hidden');
+                return;
+            }
+
+            let html = `<div>
+                <h3 class="text-[10px] uppercase text-slate-400 font-bold mb-2 text-center">Distance Distribution (${agg.distances.length} shot${agg.distances.length === 1 ? '' : 's'})</h3>
+                ${renderBoxPlotSVG(agg.boxStats, club ? club.yardage : undefined)}
+            </div>`;
+
+            if (agg.metrics.length > 0) {
+                const offDir = agg.avgOffline > 0 ? 'Right' : agg.avgOffline < 0 ? 'Left' : 'On Line';
+                html += `<div class="grid grid-cols-2 gap-2 text-center">
+                    <div class="bg-slate-900 border border-slate-700 rounded-lg p-2">
+                        <p class="text-[9px] uppercase text-slate-400 font-bold">Avg Shot Shape</p>
+                        <p class="text-sm font-bold text-white">${Math.round(Math.abs(agg.avgOffline))} yds ${offDir}</p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-700 rounded-lg p-2">
+                        <p class="text-[9px] uppercase text-slate-400 font-bold">Avg Roll-Out</p>
+                        <p class="text-sm font-bold text-white">${Math.round(agg.avgRoll)} yds</p>
+                    </div>
+                </div>`;
+            }
+
+            html += `<div class="space-y-1.5">
+                <h3 class="text-[10px] uppercase text-slate-400 font-bold mb-1 text-center">Shot Log</h3>
+                ${agg.entries.map((e, i) => {
+                    const m = computeShotMetrics(e.shot);
+                    const shapeStr = m ? `${Math.round(Math.abs(m.offlineYds))}${m.offlineYds >= 0 ? 'R' : 'L'} / ${Math.round(m.rollYds)} roll` : 'No GPS shape data';
+                    const canAnalyze = e.shot.restLat !== undefined;
+                    const label = `${e.label} • ${clubName} • ${e.shot.distance} yds`.replace(/'/g, "\\'");
+                    const analyzeBtn = canAnalyze
+                        ? `<button onclick="analyzeShotData(clubDetailShots[${i}], '${label}')" class="p-1.5 bg-slate-700 hover:bg-slate-600 rounded text-cyan-400 transition active:scale-95" title="Analyze flight"><i data-lucide="line-chart" class="w-3.5 h-3.5"></i></button>`
+                        : '';
+                    return `<div class="flex justify-between items-center bg-slate-900 border border-slate-700/50 p-2 rounded-lg text-xs">
+                        <div class="leading-tight">
+                            <span class="text-white font-semibold block">${e.shot.distance} yds</span>
+                            <span class="text-[9px] text-slate-500">${e.label} • ${shapeStr}</span>
+                        </div>
+                        ${analyzeBtn}
+                    </div>`;
+                }).join('')}
+            </div>`;
+
+            body.innerHTML = html;
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        // --- EXECUTION / LOGGING LOGIC ---
+        function triggerShot(isQuick) {
+            if (!currentPosition) return alert("Waiting for location lock. Please enable Sim Mode or allow GPS.");
+            if (isQuick) {
+                // Default clean execution
+                startLandingState({ execution: "Quick Log", isShortGame: shortGameTypes.includes(selectedShotType) });
+            } else {
+                openFlightModal();
+            }
+        }
+
+        function openFlightModal() {
+            document.getElementById('flight-modal').classList.remove('hidden');
+            document.getElementById('flight-modal-subtitle').textContent = `${selectedShotType} • ${selectedClub}`;
+
+            const isSG = shortGameTypes.includes(selectedShotType);
+            if (isSG) {
+                document.getElementById('full-swing-ui').classList.add('hidden');
+                document.getElementById('short-game-ui').classList.remove('hidden');
+                
+                // Reset defaults
+                document.getElementById('sg-dist-p').checked = true;
+                document.getElementById('sg-line-on').checked = true;
+            } else {
+                document.getElementById('full-swing-ui').classList.remove('hidden');
+                document.getElementById('short-game-ui').classList.add('hidden');
+                
+                // Reset defaults
+                document.getElementById('con-pure').checked = true;
+            }
+        }
+
+        function commitFlightDetails() {
+            const isSG = shortGameTypes.includes(selectedShotType);
+            let executionDesc = "";
+            let mishitTracker = null;
+
+            if (isSG) {
+                const dist = document.querySelector('input[name="sg-dist"]:checked').value;
+                const line = document.querySelector('input[name="sg-line"]:checked').value;
+                executionDesc = dist === "Made" ? "Made" : `${dist} / ${line}`;
+            } else {
+                const contact = document.querySelector('input[name="vec-contact"]:checked').value;
+                executionDesc = contact === "Pure" ? "Pure Strike" : contact;
+                mishitTracker = contact;
+            }
+
+            document.getElementById('flight-modal').classList.add('hidden');
+            startLandingState({ execution: executionDesc, mishit: mishitTracker, isShortGame: isSG });
+        }
+
+        function startLandingState(execData) {
+            appMode = 'landing';
+            activeShotStartLoc = {
+                lat: currentPosition.latitude, lon: currentPosition.longitude,
+                club: selectedClub, type: selectedShotType, lie: selectedLie,
+                execution: execData.execution, mishit: execData.mishit, isShortGame: execData.isShortGame,
+                distance: 0
+            };
+            // Capture the aim at swing time (can be overridden with the Aim Line button while walking)
+            if (targetMarker) {
+                const tLL = targetMarker.getLatLng();
+                activeShotStartLoc.targetLat = tLL.lat; activeShotStartLoc.targetLon = tLL.lng;
+            }
+            
+            if (targetMarker) {
+                intendedTargetLine = L.polyline([ [activeShotStartLoc.lat, activeShotStartLoc.lon], targetMarker.getLatLng() ], {color: '#ef4444', weight: 2, dashArray: '4,4'}).addTo(map);
+            }
+            const icon = L.divIcon({ className: '', html: `<div style="background:#ffffff;width:14px;height:14px;border-radius:50%;border:2px solid #000;box-shadow:0 0 5px #000;"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
+            landingMarker = L.marker([currentPosition.latitude, currentPosition.longitude], {icon: icon}).addTo(map);
+
+            document.getElementById('state-setup').classList.add('hidden'); document.getElementById('state-landing').classList.remove('hidden');
+            document.getElementById('target-readout-container').classList.add('hidden'); document.getElementById('landing-readout-container').classList.remove('hidden');
+            setPlacingMode('rest');
+            updateDistances();
+        }
+
+        function setPlacingMode(mode) {
+            placingMode = mode;
+            updateStepChips();
+            const hint = document.getElementById('landing-hint');
+            if (placingMode === 'aim') hint.textContent = "Tap the map along your intended start line (where you aimed, not where you wanted it to land).";
+            else if (placingMode === 'pitch') hint.textContent = "Tap the map where the ball first landed (pitch mark).";
+            else hint.textContent = "Walk to your ball or tap the map where it came to rest.";
+        }
+
+        function updateStepChips() {
+            const labels = { aim: '1. Aim', pitch: '2. Pitch', rest: '3. Rest' };
+            const markers = { aim: aimMarker, pitch: pitchMarker, rest: landingMarker };
+            for (const mode of ['aim', 'pitch', 'rest']) {
+                const chip = document.getElementById(`chip-${mode}`);
+                if (!chip) continue;
+                chip.classList.toggle('!border-cyan-400', placingMode === mode);
+                chip.classList.toggle('!text-cyan-300', placingMode === mode);
+                chip.textContent = markers[mode] ? `${labels[mode]} ✓` : labels[mode];
+            }
+        }
+
+        function redrawAimLine(aimLatLng) {
+            if (intendedTargetLine) map.removeLayer(intendedTargetLine);
+            intendedTargetLine = L.polyline([ [activeShotStartLoc.lat, activeShotStartLoc.lon], aimLatLng ], {color: '#ef4444', weight: 2, dashArray: '4,4'}).addTo(map);
+        }
+
+        function confirmLanding() {
+            if (!landingMarker) return;
+            const startLL = L.latLng(activeShotStartLoc.lat, activeShotStartLoc.lon);
+            const endLL = landingMarker.getLatLng();
+            activeShotStartLoc.distance = Math.round(startLL.distanceTo(endLL) * 1.09361);
+
+            // GPS points for trajectory analysis: rest = final position, pitch = first bounce (defaults to rest)
+            const pitchLL = pitchMarker ? pitchMarker.getLatLng() : endLL;
+            activeShotStartLoc.restLat = endLL.lat; activeShotStartLoc.restLon = endLL.lng;
+            activeShotStartLoc.pitchLat = pitchLL.lat; activeShotStartLoc.pitchLon = pitchLL.lng;
+            // Intended start line (aim marker) — separate from the target landing zone.
+            // A slicer aims left of the target dot; physics seeds its start-line slider from this.
+            if (aimMarker) {
+                const aLL = aimMarker.getLatLng();
+                activeShotStartLoc.aimLat = aLL.lat; activeShotStartLoc.aimLon = aLL.lng;
+            }
+
+            roundData[currentHoleIndex].shots.push(activeShotStartLoc);
+            saveRound();
+
+            if (isSimMode) {
+                currentPosition = { latitude: endLL.lat, longitude: endLL.lng };
+                if (userMarker) userMarker.setLatLng(endLL);
+            }
+
+            resetToSetupState(); renderShotLog();
+        }
+
+        function resetToSetupState() {
+            appMode = 'setup'; activeShotStartLoc = null;
+            // New shot context: let the distance-based suggestion pick again from scratch.
+            clubAutoSelected = false;
+            if (intendedTargetLine) map.removeLayer(intendedTargetLine);
+            if (landingMarker) map.removeLayer(landingMarker);
+            if (pitchMarker) map.removeLayer(pitchMarker);
+            if (aimMarker) map.removeLayer(aimMarker);
+            intendedTargetLine = null; landingMarker = null; pitchMarker = null; aimMarker = null;
+            placingMode = null;
+            updateStepChips();
+
+            document.getElementById('state-landing').classList.add('hidden'); document.getElementById('state-setup').classList.remove('hidden');
+            document.getElementById('landing-readout-container').classList.add('hidden'); document.getElementById('target-readout-container').classList.remove('hidden');
+            renderLieOptions();
+            applyLieAutoAdjust(selectedLie);
+            updateDistances();
+        }
+
+        // --- END OF HOLE SURVEY (1-4) ---
+        function openScorecard() {
+            if (appMode === 'landing') confirmLanding();
+            
+            const hd = roundData[currentHoleIndex];
+            const shotsTaken = hd.shots.length;
+            const puttsTaken = hd.shots.filter(s => s.type === 'Putt').length;
+            
+            const defaultStrokes = shotsTaken > 0 ? shotsTaken : hd.par;
+            const defaultPutts = puttsTaken > 0 ? puttsTaken : 2;
+            
+            document.getElementById('input-score').value = defaultStrokes;
+            document.getElementById('input-putts').value = defaultPutts;
+            
+            // Set radio values (1-4)
+            document.querySelector(`input[name="q1"][value="${hd.q1}"]`).checked = true;
+            document.querySelector(`input[name="q2"][value="${hd.q2}"]`).checked = true;
+            document.querySelector(`input[name="q3"][value="${hd.q3}"]`).checked = true;
+            document.querySelector(`input[name="q4"][value="${hd.q4}"]`).checked = true;
+            document.querySelector(`input[name="q5"][value="${hd.q5}"]`).checked = true;
+
+            document.getElementById('scorecard-modal').classList.remove('hidden');
+        }
+
+        function adjustStat(field, delta) {
+            const input = document.getElementById(`input-${field}`);
+            let val = parseInt(input.value) + delta;
+            if (val < 1 && field === 'score') val = 1;
+            if (val < 0 && field === 'putts') val = 0;
+            input.value = val;
+        }
+
+        function saveHoleData() {
+            const hd = roundData[currentHoleIndex];
+            
+            hd.score = parseInt(document.getElementById('input-score').value);
+            hd.putts = parseInt(document.getElementById('input-putts').value);
+            hd.q1 = parseInt(document.querySelector('input[name="q1"]:checked').value);
+            hd.q2 = parseInt(document.querySelector('input[name="q2"]:checked').value);
+            hd.q3 = parseInt(document.querySelector('input[name="q3"]:checked').value);
+            hd.q4 = parseInt(document.querySelector('input[name="q4"]:checked').value);
+            hd.q5 = parseInt(document.querySelector('input[name="q5"]:checked').value);
+            hd.played = true;
+            saveRound();
+
+            document.getElementById('scorecard-modal').classList.add('hidden');
+            calculateStats();
+            
+            if(currentHoleIndex < 17) changeHole(1);
+            else switchTab('stats');
+        }
+
+        // --- STATS ENGINE ---
+        function calculateStats() {
+            let totalScore = 0, totalPar = 0, totalPutts = 0, holesPlayed = 0;
+            let sumQ1 = 0, sumQ2 = 0, sumQ3 = 0, sumQ4 = 0;
+            
+            const clubDistances = {};
+            const mishitCounts = {};
+
+            roundData.forEach(hole => {
+                if (hole.played) {
+                    holesPlayed++;
+                    totalScore += hole.score; totalPar += hole.par; totalPutts += hole.putts;
+                    sumQ1 += hole.q1; sumQ2 += hole.q2; sumQ3 += hole.q3; sumQ4 += hole.q4;
+
+                    hole.shots.forEach(shot => {
+                        // Yardages (Only for Full Swings)
+                        if (shot.type === 'Full Swing') {
+                            if (!clubDistances[shot.club]) clubDistances[shot.club] = { totalDist: 0, count: 0, maxDist: 0 };
+                            clubDistances[shot.club].totalDist += shot.distance;
+                            clubDistances[shot.club].count++;
+                            if (shot.distance > clubDistances[shot.club].maxDist) clubDistances[shot.club].maxDist = shot.distance;
+                        }
+                        
+                        // Mishits
+                        if (shot.mishit && shot.mishit !== "Pure") {
+                            mishitCounts[shot.mishit] = (mishitCounts[shot.mishit] || 0) + 1;
+                        }
+                    });
+                }
+            });
+
+            if (holesPlayed === 0) holesPlayed = 1;
+
+            // 1-4 Averages
+            document.getElementById('stat-strat').textContent = (sumQ1 / holesPlayed).toFixed(1);
+            document.getElementById('stat-strike').textContent = (sumQ2 / holesPlayed).toFixed(1);
+            document.getElementById('stat-short').textContent = (sumQ3 / holesPlayed).toFixed(1);
+            document.getElementById('stat-comp').textContent = (sumQ4 / holesPlayed).toFixed(1);
+
+            // Performance
+            const relativeToPar = totalScore - totalPar;
+            document.getElementById('stat-to-par').textContent = relativeToPar === 0 ? "E" : (relativeToPar > 0 ? `+${relativeToPar}` : relativeToPar);
+            document.getElementById('stat-avg-putts').textContent = (totalPutts / holesPlayed).toFixed(1);
+
+            // Top Miss
+            let topMiss = "--", maxMiss = 0;
+            for (const [miss, count] of Object.entries(mishitCounts)) {
+                if (count > maxMiss) { maxMiss = count; topMiss = miss; }
+            }
+            document.getElementById('stat-top-miss').textContent = topMiss;
+
+            // Club Table
+            const tbody = document.getElementById('club-stats-body');
+            tbody.innerHTML = '';
+            const sortedClubs = Object.keys(clubDistances).sort((a,b) => clubDistances[b].maxDist - clubDistances[a].maxDist);
+            
+            if (sortedClubs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="py-3 text-center text-slate-500 italic">Log full swings to track yardages.</td></tr>`;
+            } else {
+                sortedClubs.forEach(club => {
+                    const stats = clubDistances[club];
+                    const avg = Math.round(stats.totalDist / stats.count);
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="py-2 px-3 font-semibold text-emerald-400">${club}</td>
+                        <td class="py-2 px-3 text-center font-bold">${avg}</td>
+                        <td class="py-2 px-3 text-center text-slate-400">${stats.maxDist}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            renderScorecardGrid();
+            renderScoringDistribution();
+            renderRoundHistory();
+            updateProfileFromStats();
+        }
+
+        // --- ROUND SCORECARD (Front 9 / Back 9 grid) ---
+        function scoreColorClass(hole) {
+            const diff = hole.score - hole.par;
+            if (diff <= -2) return 'text-purple-400';
+            if (diff === -1) return 'text-emerald-400';
+            if (diff === 0) return 'text-white';
+            if (diff === 1) return 'text-amber-400';
+            return 'text-red-400';
+        }
+
+        function renderScorecardGrid() {
+            const container = document.getElementById('scorecard-grid');
+
+            const buildNine = (start, title) => {
+                const holes = roundData.slice(start, start + 9);
+                const row = (label, getValue, getClass) => `
+                    <div class="grid grid-cols-10 gap-0.5">
+                        <div class="text-slate-400 font-bold uppercase text-[8px] flex items-center">${label}</div>
+                        ${holes.map(h => `<div class="text-center text-[10px] font-semibold ${getClass ? getClass(h) : 'text-slate-300'}">${getValue(h)}</div>`).join('')}
+                    </div>`;
+                const totalScore = holes.reduce((a, h) => a + (h.played ? h.score : 0), 0);
+                const totalPar = holes.reduce((a, h) => a + h.par, 0);
+                const anyPlayed = holes.some(h => h.played);
+
+                return `<div class="border border-slate-700 rounded-lg p-2 bg-slate-900/50">
+                    <div class="grid grid-cols-10 gap-0.5 mb-1">
+                        <div class="text-emerald-400 font-bold uppercase text-[8px] flex items-center whitespace-nowrap">${title}</div>
+                        ${holes.map(h => `<div class="text-center text-slate-400 font-bold text-[8px]">${h.hole}</div>`).join('')}
+                    </div>
+                    ${row('Par', h => h.par)}
+                    ${row('Score', h => h.played ? h.score : '-', h => h.played ? scoreColorClass(h) : 'text-slate-600')}
+                    ${row('Putts', h => h.played ? h.putts : '-')}
+                    <div class="text-right text-[9px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-700">
+                        ${anyPlayed ? `Total <span class="text-white font-bold">${totalScore}</span> <span class="text-slate-500">(Par ${totalPar})</span>` : '<span class="italic text-slate-500">No holes played yet</span>'}
+                    </div>
+                </div>`;
+            };
+
+            container.innerHTML = buildNine(0, 'Front 9') + buildNine(9, 'Back 9');
+        }
+
+        // --- SCORING DISTRIBUTION (current round + archived history) ---
+        function renderScoringDistribution() {
+            const dist = { eagle: 0, birdie: 0, par: 0, bogey: 0, double: 0 };
+            const accumulate = (rd) => {
+                (rd || []).forEach(hole => {
+                    if (!hole.played) return;
+                    const diff = hole.score - hole.par;
+                    if (diff <= -2) dist.eagle++;
+                    else if (diff === -1) dist.birdie++;
+                    else if (diff === 0) dist.par++;
+                    else if (diff === 1) dist.bogey++;
+                    else dist.double++;
+                });
+            };
+            accumulate(roundData);
+            try {
+                const history = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+                history.forEach(r => accumulate(r.roundData));
+            } catch(e) { /* ignore malformed history */ }
+
+            document.getElementById('stat-eagle').textContent = dist.eagle;
+            document.getElementById('stat-birdie').textContent = dist.birdie;
+            document.getElementById('stat-par').textContent = dist.par;
+            document.getElementById('stat-bogey').textContent = dist.bogey;
+            document.getElementById('stat-double').textContent = dist.double;
+        }
+
+        // --- ROUND HISTORY (archived rounds, with delete) ---
+        function renderRoundHistory() {
+            const container = document.getElementById('round-history-list');
+            let history = [];
+            try { history = JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch(e) { /* ignore malformed history */ }
+
+            if (history.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 italic text-center py-1">No archived rounds yet.</p>`;
+                return;
+            }
+
+            container.innerHTML = history.slice().reverse().map((r, revIdx) => {
+                const idx = history.length - 1 - revIdx;
+                const played = r.roundData.filter(h => h.played);
+                const totalScore = played.reduce((a, h) => a + h.score, 0);
+                const totalPar = played.reduce((a, h) => a + h.par, 0);
+                const diff = totalScore - totalPar;
+                const diffStr = played.length === 0 ? '--' : (diff === 0 ? 'E' : (diff > 0 ? `+${diff}` : diff));
+                const diffClass = diff > 0 ? 'text-amber-400' : diff < 0 ? 'text-emerald-400' : 'text-white';
+                const date = new Date(r.savedAt).toLocaleDateString();
+
+                return `<div class="flex justify-between items-center bg-slate-900 border border-slate-700/50 p-2.5 rounded-lg text-xs">
+                    <div class="leading-tight">
+                        <span class="text-white font-semibold block">${date}</span>
+                        <span class="text-[9px] text-slate-500">${played.length} holes • ${r.course}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="text-right leading-tight">
+                            <span class="block font-black ${diffClass}">${diffStr}</span>
+                            <span class="text-[9px] text-slate-500">${played.length ? totalScore : '--'} strokes</span>
+                        </div>
+                        <button onclick="deleteHistoryRound(${idx})" class="p-1.5 bg-slate-700 hover:bg-slate-600 rounded text-red-400 transition active:scale-95" title="Delete round"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function deleteHistoryRound(idx) {
+            if (!confirm("Delete this archived round? This cannot be undone.")) return;
+            try {
+                const history = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+                history.splice(idx, 1);
+                localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+            } catch(e) { console.error("Could not delete archived round", e); }
+            calculateStats();
+        }
+
+        // Aggregates Full Swing distances per club across the current round and all
+        // archived rounds, so club yardages adjust to the golfer's actual play over time.
+        function getLifetimeClubDistances() {
+            const totals = {};
+            const accumulate = (rd) => {
+                (rd || []).forEach(hole => {
+                    (hole.shots || []).forEach(shot => {
+                        if (shot.type === 'Full Swing' && shot.club !== 'Putter') {
+                            if (!totals[shot.club]) totals[shot.club] = { total: 0, count: 0 };
+                            totals[shot.club].total += shot.distance;
+                            totals[shot.club].count++;
+                        }
+                    });
+                });
+            };
+            accumulate(roundData);
+            try {
+                const history = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+                history.forEach(r => accumulate(r.roundData));
+            } catch(e) { /* ignore malformed history */ }
+            return totals;
+        }
+
+        const PROFILE_MIN_SHOTS = 3;
+        const PROFILE_LEARNING_RATE = 0.25;
+
+        // Nudges each club's bag yardage toward its lifetime average carry distance,
+        // a step at a time, once enough shots have been logged with that club.
+        function updateProfileFromStats() {
+            const lifetime = getLifetimeClubDistances();
+            let changed = false;
+            golferProfile.clubs.forEach(club => {
+                const data = lifetime[club.name];
+                if (data && data.count >= PROFILE_MIN_SHOTS) {
+                    const avg = data.total / data.count;
+                    const adjusted = Math.round(club.yardage + (avg - club.yardage) * PROFILE_LEARNING_RATE);
+                    if (adjusted !== club.yardage) { club.yardage = adjusted; changed = true; }
+                }
+            });
+            if (changed) { saveProfile(); renderClubSelect(); }
+        }
+
+        // --- UI UTILS ---
+        function renderShotLog() {
+            const container = document.getElementById('shot-log');
+            const shots = roundData[currentHoleIndex].shots;
+            container.innerHTML = '';
+            
+            shotMarkersLayer.forEach(m => map.removeLayer(m)); shotMarkersLayer = [];
+            if(shotPolyline) map.removeLayer(shotPolyline);
+
+            if (shots.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 italic text-center py-1">No shots recorded yet.</p>`; return;
+            }
+
+            const latlngs = [];
+            shots.forEach((shot, index) => {
+                latlngs.push([shot.lat, shot.lon]);
+                const num = index + 1;
+                const icon = L.divIcon({ className: '', html: `<div class="shot-marker" style="width:18px;height:18px;">${num}</div>`, iconSize: [18, 18], iconAnchor: [9, 9] });
+                shotMarkersLayer.push(L.marker([shot.lat, shot.lon], {icon: icon}).addTo(map));
+
+                const canAnalyze = shot.type === 'Full Swing' && shot.restLat !== undefined;
+                const analyzeBtn = canAnalyze
+                    ? `<button onclick="analyzeShot(${index})" class="p-1.5 bg-slate-700 hover:bg-slate-600 rounded text-cyan-400 transition active:scale-95" title="Analyze flight"><i data-lucide="line-chart" class="w-3.5 h-3.5"></i></button>`
+                    : '';
+
+                const div = document.createElement('div');
+                div.className = "flex justify-between items-center bg-slate-900 border border-slate-700/50 p-2 rounded-lg text-xs";
+                div.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="w-5 h-5 flex items-center justify-center bg-emerald-500 text-slate-950 font-bold rounded-full">${num}</span>
+                        <div class="leading-tight w-36 truncate">
+                            <span class="text-white font-semibold block">${shot.club} <span class="text-slate-500 text-[9px] font-normal">(${shot.type})</span></span>
+                            <span class="text-[9px] text-emerald-400 font-medium truncate block">${shot.execution} <span class="text-slate-500 ml-1">• ${shot.lie}</span></span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-emerald-400">${shot.distance} yds</span>
+                        ${analyzeBtn}
+                        <button onclick="deleteShot(${index})" class="p-1.5 bg-slate-700 hover:bg-slate-600 rounded text-red-400 transition active:scale-95" title="Delete shot"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+
+            if(latlngs.length > 1) shotPolyline = L.polyline(latlngs, {color: '#10b981', weight: 2, dashArray: '4,4'}).addTo(map);
+            lucide.createIcons();
+        }
+
+        function deleteShot(index) {
+            if (!confirm("Delete this shot from the log?")) return;
+            roundData[currentHoleIndex].shots.splice(index, 1);
+            saveRound();
+            renderShotLog();
+        }
+
+        function analyzeShot(index) {
+            const shot = roundData[currentHoleIndex].shots[index];
+            if (!shot) return;
+            const label = `Hole ${currentHoleIndex + 1} • Shot ${index + 1} • ${shot.club} • ${shot.distance} yds${shot.mishit && shot.mishit !== 'Pure' ? ' • ' + shot.mishit : ''}`;
+            analyzeShotData(shot, label);
+        }
+
+        // Builds a physics.html deep-link for an arbitrary logged shot (current round
+        // or history), so the trajectory reconstruction can be reused from anywhere.
+        function analyzeShotData(shot, label) {
+            if (!shot || shot.restLat === undefined) return;
+            const fmt = (lat, lon) => `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+            const params = new URLSearchParams({
+                tee: fmt(shot.lat, shot.lon),
+                target: shot.targetLat !== undefined ? fmt(shot.targetLat, shot.targetLon) : fmt(shot.restLat, shot.restLon),
+                landed: fmt(shot.pitchLat, shot.pitchLon),
+                stopped: fmt(shot.restLat, shot.restLon),
+                label: label
+            });
+            if (shot.aimLat !== undefined) params.set('aim', fmt(shot.aimLat, shot.aimLon));
+            window.open(`physics.html?${params.toString()}`, '_blank');
+        }
+
+        function changeHole(direction) {
+            if (appMode === 'landing' && !confirm("You have a shot in progress. Discard it and change holes?")) return;
+            currentHoleIndex += direction;
+            if (currentHoleIndex < 0) currentHoleIndex = 0;
+            if (currentHoleIndex > 17) currentHoleIndex = 17;
+            if(targetMarker) { map.removeLayer(targetMarker); targetMarker = null; }
+            saveRound();
+            resetToSetupState(); loadHoleDataIntoUI();
+            loadTargetMarker();
+        }
+
+        function loadHoleDataIntoUI() {
+            const data = courseData[currentHoleIndex];
+            document.getElementById('current-hole-title').textContent = `Hole ${data.hole}`;
+            document.getElementById('hole-par-view').textContent = `Par ${data.par} • ${data.dist} Yds`;
+            document.getElementById('score-hole-title').textContent = `Hole ${data.hole} • Par ${data.par}`;
+            renderLieOptions(); renderShotLog();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.app-section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById(`${tabId}-section`).classList.remove('hidden');
+            document.querySelectorAll('nav button').forEach(btn => { btn.classList.remove('text-emerald-400'); btn.classList.add('text-slate-500'); });
+            document.getElementById(`nav-${tabId}`).classList.remove('text-slate-500');
+            document.getElementById(`nav-${tabId}`).classList.add('text-emerald-400');
+            if (tabId === 'gps' && map) setTimeout(() => { map.invalidateSize(); }, 100);
+            if (tabId === 'stats') calculateStats();
+            if (tabId === 'profile') renderBagList();
+        }
+    </script>
+</body>
+</html>
