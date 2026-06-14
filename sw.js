@@ -1,6 +1,6 @@
 // GreenDrive service worker — app shell + CDN libs cached for offline,
 // satellite map tiles cached as you view them (golf courses have bad signal).
-const SHELL_CACHE = 'greendrive-shell-v12';
+const SHELL_CACHE = 'greendrive-shell-v43';
 const TILE_CACHE = 'greendrive-tiles-v1';
 const MAX_TILES = 600;
 
